@@ -194,7 +194,7 @@ class Wikibase(BaseModel):
         }
         """)
         if language is None:
-            language = "en"
+            language = "de"
         query_template = Template(query_raw.safe_substitute(language=language, item_prefix=self.item_prefix))
         values = [f"<{entity_id}>" for entity_id in entity_ids]
         lod = self.execute_values_query_in_chunks(

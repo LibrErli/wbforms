@@ -46,7 +46,7 @@ def _label(name: str) -> str:
     return name.replace("_", " ").title()
 
 
-def _get_localized_label(slot_name: str, language: str = "en") -> str:
+def _get_localized_label(slot_name: str, language: str = "de") -> str:
     """Hole das lokalisierte Label für einen Slot aus dem Schema.
     
     Falls der Slot local_names definiert hat, wird das Label für die
@@ -250,7 +250,7 @@ def get_public_config() -> dict:
 
 @router.get("/api/schema/entities")
 def get_schema_entities(
-    language: str = Query(default="en", description="Language for localized labels (e.g., 'en', 'de')")
+    language: str = Query(default="de", description="Language for localized labels (e.g., 'en', 'de')")
 ) -> list[dict]:
     """Return schema metadata for all item-type entities, suitable for form generation.
     
@@ -279,7 +279,7 @@ def get_schema_entities(
 
 
 @router.get("/api/entity-search")
-async def entity_search(q: str = Query(..., min_length=1), limit: int = 10) -> list[dict]:
+async def entity_search(q: str = Query(..., min_length=1), limit: int = 10, language: str = "de") -> list[dict]:
     """Proxy to wbsearchentities to avoid CORS issues from the browser."""
     async with httpx.AsyncClient() as client:
         resp = await client.get(
@@ -287,26 +287,55 @@ async def entity_search(q: str = Query(..., min_length=1), limit: int = 10) -> l
             params={
                 "action": "wbsearchentities",
                 "search": q,
-                "language": "en",
+                "language": language,
+                "strictlanguage": 1,
+                "uselang": language,
                 "type": "item",
                 "format": "json",
+                "formatversion": 2,
                 "limit": limit,
             },
             timeout=10.0,
         )
         resp.raise_for_status()
-    return [
-        {
+    results = []
+    for r in resp.json().get("search", []):
+        label = r["id"]  # Default fallback
+        description = ""
+        
+        # Strategy: FactGrid returns match.text with the actual matched text in the search language
+        # and display.label.value with the label in display language
+        match = r.get("match", {})
+        display = r.get("display", {})
+        
+        # 1. Try match.text first (contains the text that matched in search language)
+        if match.get("language") == language:
+            label = match.get("text") or label
+        
+        # 2. Try display label if it's in the requested language
+        display_label_info = display.get("label", {})
+        if display_label_info.get("language") == language:
+            label = display_label_info.get("value") or label
+            description = display.get("description", {}).get("value", "")
+        
+        # 3. Fallbacks from root level
+        if not label:
+            label = r.get("label", r["id"])
+        if not description:
+            description = r.get("description", "")
+        
+        results.append({
             "id": r["id"],
-            "label": r.get("label", r["id"]),
-            "description": r.get("description", ""),
-        }
-        for r in resp.json().get("search", [])
-    ]
+            "label": label,
+            "description": description,
+            "match": match,
+            "display":display
+        })
+    return results
 
 
 @router.get("/api/entity-label")
-async def entity_label(qid: str = Query(...), language: str = "en") -> dict:
+async def entity_label(qid: str = Query(...), language: str = "de") -> dict:
     """Resolve a single QID to its label and description via wbgetentities."""
     async with httpx.AsyncClient() as client:
         resp = await client.get(
@@ -316,6 +345,7 @@ async def entity_label(qid: str = Query(...), language: str = "en") -> dict:
                 "ids": qid,
                 "props": "labels|descriptions",
                 "languages": language,
+                "uselang": language,
                 "format": "json",
             },
             timeout=10.0,

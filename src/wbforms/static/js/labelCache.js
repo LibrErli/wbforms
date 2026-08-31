@@ -2,7 +2,7 @@ import { apiFetch } from "./api.js";
 
 const _cache = {};
 
-export async function getLabel(qid, language = "en") {
+export async function getLabel(qid, language = "de") {
   if (!qid) return "";
   const key = `${qid}:${language}`;
   if (key in _cache) return _cache[key];
