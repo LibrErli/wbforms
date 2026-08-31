@@ -3,6 +3,7 @@
 from pathlib import Path
 from typing import get_args
 
+import yaml
 import httpx
 from fastapi import APIRouter, Query
 from fastapi.responses import FileResponse
@@ -21,6 +22,18 @@ router = APIRouter()
 _SKIP_FIELDS = {"qid", "statement_id", "sources"}
 _INTERNAL_WB_IDS = {"rdf:subject", "rdfs:label", "schema:description"}
 
+# Cache für das geladene Schema
+_schema_cache: dict | None = None
+
+
+def _get_schema() -> dict:
+    """Lade und cache das LinkML Schema aus der Datei."""
+    global _schema_cache
+    if _schema_cache is None:
+        schema_path = get_settings().schema_path
+        _schema_cache = yaml.safe_load(schema_path.read_text(encoding="utf-8"))
+    return _schema_cache
+
 
 def _wikibase_type(field_info) -> str | None:
     extra = field_info.json_schema_extra
@@ -33,13 +46,45 @@ def _label(name: str) -> str:
     return name.replace("_", " ").title()
 
 
+def _get_localized_label(slot_name: str, language: str = "en") -> str:
+    """Hole das lokalisierte Label für einen Slot aus dem Schema.
+    
+    Falls der Slot local_names definiert hat, wird das Label für die
+    angegebene Sprache zurückgegeben. Falls nicht, wird ein generisches
+    Label aus dem Slot-Namen erstellt.
+    """
+    schema = _get_schema()
+    
+    # Suche nach dem Slot in den Slots des Schemas
+    slots = schema.get("slots", {})
+    if slot_name in slots:
+        slot_def = slots[slot_name]
+        local_names = slot_def.get("local_names", {})
+        if local_names:
+            # Versuche, das Label für die gewünschte Sprache zu finden
+            lang_names = local_names.get(language, {})
+            if lang_names:
+                return lang_names.get("local_name_value", _label(slot_name))
+            # Fallback: versuche englisch
+            en_names = local_names.get("en", {})
+            if en_names:
+                return en_names.get("local_name_value", _label(slot_name))
+            # Fallback: nehme den ersten verfügbaren lokalen Namen
+            for lang_data in local_names.values():
+                if isinstance(lang_data, dict) and "local_name_value" in lang_data:
+                    return lang_data["local_name_value"]
+    
+    # Fallback: generisches Label aus dem Slot-Namen
+    return _label(slot_name)
+
+
 def _strict_variant(cls: type, all_models: dict) -> type:
     """Resolve a lenient read model to its strict Create variant so the form
     metadata reports the schema's requiredness, not the read model's leniency."""
     return all_models.get(f"{cls.__name__}Create", cls)
 
 
-def _build_statement_fields(stmt_cls: type[StatementBase]) -> list[dict]:
+def _build_statement_fields(stmt_cls: type[StatementBase], language: str = "en") -> list[dict]:
     subject_field_name = stmt_cls.get_statement_subject(WIKIBASE_ID)
     fields = []
     for fname, finfo in stmt_cls.model_fields.items():
@@ -51,7 +96,7 @@ def _build_statement_fields(stmt_cls: type[StatementBase]) -> list[dict]:
             continue
         entry = {
             "name": fname,
-            "label": _label(fname),
+            "label": _get_localized_label(fname, language),
             "wikibase_type": _wikibase_type(finfo),
             "field_type": "list" if _is_list_annotation(finfo.annotation) else "single",
             "required": finfo.is_required(),
@@ -75,7 +120,7 @@ def _reference_class_for(stmt_cls: type[StatementBase]) -> type[WikibaseReferenc
     return None
 
 
-def _build_reference_fields(ref_cls: type[WikibaseReferenceBase]) -> list[dict]:
+def _build_reference_fields(ref_cls: type[WikibaseReferenceBase], language: str = "en") -> list[dict]:
     """Return frontend field descriptors for a WikibaseReference inner class."""
     fields = []
     for fname in ref_cls.get_reference_fields(WIKIBASE_ID):
@@ -83,7 +128,7 @@ def _build_reference_fields(ref_cls: type[WikibaseReferenceBase]) -> list[dict]:
         fields.append(
             {
                 "name": fname,
-                "label": _label(fname),
+                "label": _get_localized_label(fname, language),
                 "wikibase_type": _wikibase_type(finfo),
                 "field_type": "list" if _is_list_annotation(finfo.annotation) else "single",
                 "required": finfo.is_required(),
@@ -97,18 +142,28 @@ def _build_entity_schema(
     model_cls: type[BaseModel],
     all_models: dict,
     endpoints: list[dict],
+    language: str = "en",
 ) -> dict:
     fields: list[dict] = []
 
     # Always expose label and description as top-level text inputs; requiredness follows
     # the model (mandatory unless the schema declares the slot as optional).
-    for meta_name, meta_label in [("label", "Label"), ("description", "Description")]:
+    for meta_name in ["label", "description"]:
         finfo = model_cls.model_fields.get(meta_name)
         if finfo is None:
             continue
+        # Use localized label for description if available in schema
+        if meta_name == "description":
+            label_value = _get_localized_label("description", language)
+        elif meta_name == "label":
+            # label is a special term slot without local_names in schema
+            label_value = _get_localized_label("label", language)
+        else:
+            label_value = _label(meta_name)
+        
         term_field: dict = {
             "name": meta_name,
-            "label": meta_label,
+            "label": label_value,
             "field_type": "single",
             "wikibase_type": "string",
             "required": finfo.is_required(),
@@ -150,14 +205,14 @@ def _build_entity_schema(
             fields.append(
                 {
                     "name": fname,
-                    "label": _label(fname),
+                    "label": _get_localized_label(fname, language),
                     "field_type": "statement_list",
                     "statement_model": stmt_name,
                     "statement_endpoint": stmt_endpoint["prefix"] if stmt_endpoint else None,
-                    "statement_fields": _build_statement_fields(_strict_variant(stmt_type, all_models)),
+                    "statement_fields": _build_statement_fields(_strict_variant(stmt_type, all_models), language),
                     "enforce_unknown_stmt_name": bool(getattr(stmt_type, "_enforce_unknown_stmt_name", False)),
                     "supports_references": ref_cls is not None,
-                    "reference_fields": _build_reference_fields(ref_cls) if ref_cls is not None else [],
+                    "reference_fields": _build_reference_fields(ref_cls, language) if ref_cls is not None else [],
                 }
             )
             continue
@@ -167,7 +222,7 @@ def _build_entity_schema(
 
         descriptor: dict = {
             "name": fname,
-            "label": _label(fname),
+            "label": _get_localized_label(fname, language),
             "field_type": "list" if _is_list_annotation(finfo.annotation) else "single",
             "wikibase_type": _wikibase_type(finfo),
             "required": finfo.is_required(),
@@ -177,7 +232,7 @@ def _build_entity_schema(
             ref_cls = _wikibase_reference_class(sources_field)
             if ref_cls is not None:
                 descriptor["supports_references"] = True
-                descriptor["reference_fields"] = _build_reference_fields(_strict_variant(ref_cls, all_models))
+                descriptor["reference_fields"] = _build_reference_fields(_strict_variant(ref_cls, all_models), language)
         fields.append(descriptor)
 
     return {"name": entity_name, "fields": fields}
@@ -194,8 +249,14 @@ def get_public_config() -> dict:
 
 
 @router.get("/api/schema/entities")
-def get_schema_entities() -> list[dict]:
-    """Return schema metadata for all item-type entities, suitable for form generation."""
+def get_schema_entities(
+    language: str = Query(default="en", description="Language for localized labels (e.g., 'en', 'de')")
+) -> list[dict]:
+    """Return schema metadata for all item-type entities, suitable for form generation.
+    
+    The language parameter controls which localized labels are returned for fields.
+    Falls back to English if the requested language is not available.
+    """
     endpoints = derive_endpoints(get_settings().schema_path)
 
     item_endpoints = [ep for ep in endpoints if ep.get("type") == "item"]
@@ -209,7 +270,7 @@ def get_schema_entities() -> list[dict]:
         model_cls = all_models.get(f"{model_name}Create") or all_models.get(model_name)
         if model_cls is None:
             continue
-        entity = _build_entity_schema(model_name, model_cls, all_models, endpoints)
+        entity = _build_entity_schema(model_name, model_cls, all_models, endpoints, language)
         entity["endpoint_prefix"] = ep["prefix"]
         entity["id_param"] = ep.get("id_param", "item_id")
         result.append(entity)

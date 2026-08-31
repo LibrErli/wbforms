@@ -3,6 +3,8 @@ services:
     container_name: wbforms-factgrid
     build:
       context: ./
+    volumes:
+      - ./src/wbforms/static:/app/src/wbforms/static:ro  # JS/CSS/HTML live mounten in Dev
     restart: unless-stopped
     env_file:
       - path: .env
@@ -14,3 +16,9 @@ services:
     # the right side must match WBFORMS_SCHEMA_PATH in your .env.
     # volumes:
     #   - ./my_schema.yaml:/app/src/ceur_graph/schema/ceur_graph.yaml:ro
+
+    # Uncomment for Production Mode to resolve wikibase via DNS:
+    
+    # dns:
+    #   - 213.239.209.8
+    #   - 1.1.1.1    

@@ -12,7 +12,7 @@
   /* Bridge Pico v2 --pico-* tokens to the unprefixed names used in the app. */
   --card-background-color: var(--pico-card-background-color, #fff);
   --card-border-color:     var(--pico-card-sectionning-background-color, #f1f3f7);
-  --primary:               var(--pico-primary, #1b6ef3);
+  --primary:               var(--pico-primary, #1da353);
   --primary-background:    #e8f0fe;
   --primary-hover:         #154dbb;
   --muted-color:           var(--pico-muted-color, #646b7d);

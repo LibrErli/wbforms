@@ -1,5 +1,5 @@
 id: https://database.factgrid.de/schema/besucherbuch
-name: Besucherbuch
+name: Person_Besucherbuch
 description: Schema for Besucherbuch entities with Wikibase property mappings
 
 prefixes:
@@ -317,7 +317,7 @@ slots:
       wikibase_type: string
 
 classes:
-  Besucherbuch:
+  Person_Besucherbuch:
     annotations:
       python_base: entity_item
     slots:

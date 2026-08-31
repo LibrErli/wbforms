@@ -1,9 +1,8 @@
 FROM python:3.12-alpine
 LABEL authors="tholzheim"
 
+WORKDIR /app
 COPY . .
-
-COPY pyproject.toml .
 
 RUN python -m pip install --upgrade pip
 

@@ -36,7 +36,7 @@ function usernameFromToken(token) {
 const App = {
   components: { LoginForm, EntityEditor },
   setup() {
-    const { t } = useI18n();
+    const { t, locale } = useI18n();
 
     // Pick up an OAuth callback token delivered via #token=... fragment.
     const hash = window.location.hash || "";
@@ -73,7 +73,7 @@ const App = {
     async function loadSchema() {
       if (!isLoggedIn.value) return;
       try {
-        state.schema = await apiFetch("/api/schema/entities");
+        state.schema = await apiFetch(`/api/schema/entities?language=${locale.value}`);
       } catch (e) {
         state.schemaError = e.message;
       }
@@ -95,6 +95,13 @@ const App = {
 
     loadConfig();
     loadSchema();
+
+    // Reload schema when language changes
+    watch(() => locale.value, () => {
+      if (isLoggedIn.value) {
+        loadSchema();
+      }
+    });
 
     return { state, isLoggedIn, onLogin, onLogout, t };
   },
