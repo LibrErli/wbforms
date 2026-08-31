@@ -107,6 +107,7 @@ const messages = {
     search_cancel: "Cancel",
     search_clear: "Clear",
     search_failed: "Search failed",
+    footer_impressum: "Imprint",
   },
   de: {
     app_loading_schema: "Schema wird geladen…",
@@ -199,6 +200,7 @@ const messages = {
     search_cancel: "Abbrechen",
     search_clear: "Löschen",
     search_failed: "Suche fehlgeschlagen",
+    footer_impressum: "Impressum",
   },
 };
 

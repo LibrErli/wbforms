@@ -5,6 +5,7 @@ services:
       context: ./
     volumes:
       - ./src/wbforms/static:/app/src/wbforms/static:ro  # JS/CSS/HTML live mounten in Dev
+      - ./src/wbforms/schema:/app/src/wbforms/schema:ro 
     restart: unless-stopped
     env_file:
       - path: .env

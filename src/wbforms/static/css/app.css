@@ -21,6 +21,8 @@
   --del-color:             #c62a2f;
   --warn-color:            #b56500;
   --bg-soft:               #f7f8fb;
+  --pico-primary:          #1da353 !important;
+  --pico-secondary:        #1da353 !important;
 }
 
 /* ----- Pico density overrides ---------------------------------------------- */
@@ -44,6 +46,8 @@ button,
   font-size: 0.9rem;
   padding: 0.4rem 0.85rem;
   margin: 0;
+  background-color: var(--pico-primary);
+  color: var(--bg-soft)
 }
 label {
   margin-bottom: 0.15rem;
@@ -74,6 +78,7 @@ label {
   font-weight: 700;
   font-size: 1rem;
   letter-spacing: 0.01em;
+  color: var(--pico-primary);
 }
 .app-bar-actions {
   display: flex;
