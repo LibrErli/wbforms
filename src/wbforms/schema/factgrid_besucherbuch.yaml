@@ -177,9 +177,25 @@ slots:
 
   station_id:
     range: item_statement_subject
+    local_names:
+      en:
+        local_name_value: "Station ID"
+      de:
+        local_name_value: "Aufenthaltsort (Identifikator)"
     annotations:
-      wikibase_id: "https://ceur-dev.wikibase.cloud/prop/statement/P296"
+      wikibase_id: "https://database.factgrid.de/prop/statement/P296"
       wikibase_type: item
+
+  other_person_id:
+    range: item_statement_subject
+    local_names:
+      en:
+        local_name_value: "Other Person"
+      de:
+        local_name_value: "Weitere Person in Gruppe"
+    annotations:
+      wikibase_id: "https://database.factgrid.de/prop/statement/P703"
+      wikibase_type: item    
 
   # Qualifier
   begin_date:
@@ -242,6 +258,17 @@ slots:
     annotations:
       wikibase_id: "https://database.factgrid.de/prop/qualifier/P35"
       wikibase_type: string
+  note_qual:
+    range: string
+    local_names:
+      en:
+        local_name_value: "Note"
+      de:
+        local_name_value: "Notiz"
+    annotations:
+      wikibase_id: "https://database.factgrid.de/prop/qualifier/P73"
+      wikibase_type: string
+
 
   # Statement-reference slots (range is a schema class, no Wikibase annotations)
   stay_in:
@@ -253,6 +280,16 @@ slots:
         local_name_value: "Stay in"
       de:
         local_name_value: "Aufenthalt in"
+
+  person_group:
+    range: PersonGroup
+    multivalued: true
+    inlined_as_list: true
+    local_names:
+      en:
+        local_name_value: "group of persons"
+      de:
+        local_name_value: "Personengruppe"
 
   # Wikibase statement-level reference slots (path segment: /reference/Pxx)
   ref_begin_date:
@@ -337,10 +374,14 @@ classes:
       - notate
       - biographical_notes
       - gnd_id
+      - person_group
     slot_usage:
       stay_in:
         annotations:
           supports_references: true
+      person_group:
+        annotations:
+          supports_references: true          
 
   StayIn:
     annotations:
@@ -356,6 +397,16 @@ classes:
       - page
       - online_digistation
       - literal_statement
+
+  PersonGroup:
+    annotations:
+      python_base: extracted_statement
+      model_title: PersonGroup
+      enforce_unknown_stmt_name: false
+      supports_references: true
+    slots:
+      - other_person_id
+      - note_qual
 
   WikibaseReference:
     description: A Wikibase statement-level reference block (group of snaks documenting provenance).

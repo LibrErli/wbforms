@@ -4,14 +4,14 @@ services:
     build:
       context: ./
     volumes:
-      - ./src/wbforms/static:/app/src/wbforms/static:ro  # JS/CSS/HTML live mounten in Dev
-      - ./src/wbforms/schema:/app/src/wbforms/schema:ro 
+      - ./src/wbforms:/app/src/wbforms:ro  # JS/CSS/HTML live mounten in Dev
     restart: unless-stopped
     env_file:
       - path: .env
         required: false
     ports:
       - "9574:8000"
+    command: ["uvicorn", "src.wbforms.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]      
     # Uncomment and adjust to deploy with a custom LinkML schema. The host
     # path on the left is bind-mounted at the container path on the right;
     # the right side must match WBFORMS_SCHEMA_PATH in your .env.

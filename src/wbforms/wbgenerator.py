@@ -106,7 +106,7 @@ def create_item_from_model(model: BaseModel, wbi: WikibaseIntegrator) -> ItemEnt
     :return:
     """
     item: ItemEntity = wbi.item.new()
-    default_language = "en"
+    default_language = "de"
 
     field_name: str
     field_metadata: FieldInfo
@@ -174,7 +174,7 @@ def update_item_from_model(model: BaseModel, item: ItemEntity):
     :param item:
     :return:
     """
-    default_language = "en"
+    default_language = "de"
     model_cls = type(model)
     for field_name in model.model_fields_set:
         field_value: Any = getattr(model, field_name)
@@ -329,7 +329,7 @@ def get_claim(prop_id: str, datatype: str, value: Any, language: str | None = No
     :return:
     """
     if language is None:
-        language = "en"
+        language = "de"
     if value is None:
         return None
     prop_nr = Wikibase.get_entity_id(prop_id)
@@ -386,7 +386,7 @@ def get_model_from_item(item: ItemEntity, model: type[BaseModel]) -> BaseModel:
     :param model:
     :return:
     """
-    default_language = "en"
+    default_language = "de"
     field_name: str
     field_metadata: FieldInfo
     record: dict[str, Any] = {}
