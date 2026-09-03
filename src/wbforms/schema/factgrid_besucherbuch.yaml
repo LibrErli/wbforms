@@ -123,7 +123,18 @@ slots:
         local_name_value: "Herkunftsterritorium"
     annotations:
       wikibase_id: "https://database.factgrid.de/prop/direct/P814"
-      wikibase_type: item            
+      wikibase_type: item
+  country_citizenship:
+    range: string
+    multivalued: true
+    local_names:
+      en:
+        local_name_value: "Country of citizenship"
+      de:
+        local_name_value: "Land der Staatsangehörigkeit"
+    annotations:
+      wikibase_id: "https://database.factgrid.de/prop/direct/P616"
+      wikibase_type: item                     
   career_statement:
     range: string
     multivalued: true
@@ -226,6 +237,16 @@ slots:
         local_name_value: "WBIS-ID"
     annotations:
       wikibase_id: "https://database.factgrid.de/prop/direct/P1533"
+      wikibase_type: external-id
+  adb:
+    range: string
+    local_names:
+      en:
+        local_name_value: "ADB"
+      de:
+        local_name_value: "ADB Lemma"
+    annotations:
+      wikibase_id: "https://database.factgrid.de/prop/direct/P741"
       wikibase_type: external-id
 
   station_id:
@@ -430,6 +451,7 @@ classes:
       - place_of_birth
       - place_of_death
       - place_from
+      - country_citizenship
       - location_identiy
       - stay_in
       - career_statement
@@ -440,6 +462,7 @@ classes:
       - biographical_notes
       - gnd_id
       - wbis_id
+      - adb
       - person_group
     slot_usage:
       stay_in:
