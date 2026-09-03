@@ -120,8 +120,9 @@ const App = {
 
     <footer style="margin-top: 2rem; padding: 1rem; border-top: 1px solid #ddd; background: #f9f9f9; display: flex; justify-content: space-between; align-items: center;">
       <div>
-        <a href="https://saxorum.de"><img src="/static/images/sxrmLogo.svg" alt="Logo" style="height: 30px; margin-right: 1rem; vertical-align: middle;"></a>
-        <a href="https://www.saxorum.de/impressum" class="link-btn" style="text-decoration:none;">{{ t('footer_impressum') }}</a>
+       <a href="https://säbig.de"><img src="/static/images/saebig_logo.svg" alt="Logo" style="height: 40px; margin-right: 1rem; vertical-align: middle;"></a>  
+       <a href="https://saxorum.de"><img src="/static/images/sxrmLogo.svg" alt="Logo" style="height: 30px; margin-right: 1rem; vertical-align: middle;"></a>
+       <a href="https://www.saxorum.de/impressum" class="link-btn" style="text-decoration:none; font-size: 0.65rem;">{{ t('footer_impressum') }}</a>
       </div>
       <div>
         <a href="https://github.com/FactGrid/wbforms" style="color: #333; text-decoration: none;" aria-label="GitHub" title="derrived from FactGrid/wbforms">

@@ -31,8 +31,20 @@ slots:
         local_name_value: "Description"
       de:
         local_name_value: "Beschreibung"
+  instance_of:
+    range: string
+    ifabsent: "https://database.factgrid.de/entity/Q7"
+    local_names:
+      en:
+        local_name_value: "instance of"
+      de:
+        local_name_value: "ist ein/e"
+    annotations:
+      wikibase_id: "https://database.factgrid.de/prop/direct/P2"
+      wikibase_type: item        
   family_name:
     range: string
+    multivalued: true
     local_names:
       en:
         local_name_value: "Family name"
@@ -173,6 +185,16 @@ slots:
         local_name_value: "GND-ID"
     annotations:
       wikibase_id: "https://database.factgrid.de/prop/direct/P76"
+      wikibase_type: external-id
+  wbis_id:
+    range: string
+    local_names:
+      en:
+        local_name_value: "WBIS-ID"
+      de:
+        local_name_value: "WBIS-ID"
+    annotations:
+      wikibase_id: "https://database.factgrid.de/prop/direct/P1533"
       wikibase_type: external-id
 
   station_id:
@@ -342,6 +364,16 @@ slots:
     annotations:
       wikibase_id: "https://database.factgrid.de/prop/reference/P138"
       wikibase_type: url
+  ref_wikisource_page:
+    range: string
+    local_names:
+      en:
+        local_name_value: "Wikisource Page"
+      de:
+        local_name_value: "Wikisource Seite"
+    annotations:
+      wikibase_id: "https://database.factgrid.de/prop/reference/P1534"
+      wikibase_type: string
   ref_literal_statement:
     range: string
     local_names:
@@ -358,6 +390,7 @@ classes:
     annotations:
       python_base: entity_item
     slots:
+      - instance_of
       - description
       - family_name
       - given_name
@@ -374,6 +407,7 @@ classes:
       - notate
       - biographical_notes
       - gnd_id
+      - wbis_id
       - person_group
     slot_usage:
       stay_in:
@@ -382,21 +416,23 @@ classes:
       person_group:
         annotations:
           supports_references: true          
+  FamilyName:
+    annotations:
+      python_base: entity_item
+    slots:
+      - instance_of
+      - description
 
   StayIn:
     annotations:
       python_base: extracted_statement
       model_title: StayIn
-      enforce_unknown_stmt_name: true
+      enforce_unknown_stmt_name: false
       supports_references: true
     slots:
       - station_id
       - begin_date
       - end_date
-      - primary_source
-      - page
-      - online_digistation
-      - literal_statement
 
   PersonGroup:
     annotations:
@@ -413,9 +449,8 @@ classes:
     annotations:
       python_base: wikibase_reference
     slots:
-      - ref_begin_date
-      - ref_end_date
       - ref_primary_source
       - ref_page
       - ref_online_digistation
+      - ref_wikisource_page
       - ref_literal_statement
