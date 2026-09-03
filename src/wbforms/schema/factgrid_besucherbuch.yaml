@@ -104,6 +104,26 @@ slots:
     annotations:
       wikibase_id: "https://database.factgrid.de/prop/direct/P168"
       wikibase_type: item
+  place_from:
+    range: string
+    local_names:
+      en:
+        local_name_value: "From (place as mentioned)"
+      de:
+        local_name_value: "Genannter Herkunftsort (bei fehlendem Geburtsort)"
+    annotations:
+      wikibase_id: "https://database.factgrid.de/prop/direct/P295"
+      wikibase_type: item
+  location_identiy:
+    range: string
+    local_names:
+      en:
+        local_name_value: "Location of identity"
+      de:
+        local_name_value: "Herkunftsterritorium"
+    annotations:
+      wikibase_id: "https://database.factgrid.de/prop/direct/P814"
+      wikibase_type: item            
   career_statement:
     range: string
     multivalued: true
@@ -176,6 +196,17 @@ slots:
     annotations:
       wikibase_id: "https://database.factgrid.de/prop/direct/P173"
       wikibase_type: string
+  aristocratic:
+    range: string
+    multivalued: true
+    local_names:
+      en:
+        local_name_value: "Aristocratic Title"
+      de:
+        local_name_value: "Adelstitel"
+    annotations:
+      wikibase_id: "https://database.factgrid.de/prop/direct/P26"
+      wikibase_type: item      
   gnd_id:
     range: string
     local_names:
@@ -398,13 +429,14 @@ classes:
       - date_of_death
       - place_of_birth
       - place_of_death
+      - place_from
+      - location_identiy
       - stay_in
       - career_statement
       - online_information
       - work_location
-      - research_project_reference
+      - aristocratic
       - note
-      - notate
       - biographical_notes
       - gnd_id
       - wbis_id
