@@ -89,6 +89,34 @@ def _statement_ids_equal(a: str | None, b: str | None) -> bool:
     return a.lower() == b.lower()
 
 
+def _claims_have_same_value(claim1: Claim, claim2: Claim) -> bool:
+    """Check if two claims have the same main value.
+    
+    This is used to identify duplicate claims when updating items,
+    to preserve existing qualifiers and references.
+    """
+    if claim1.mainsnak is None or claim2.mainsnak is None:
+        return False
+    if claim1.mainsnak.datatype != claim2.mainsnak.datatype:
+        return False
+    
+    # Compare based on datatype
+    if claim1.mainsnak.datatype == "commonsMedia":
+        return claim1.mainsnak.datavalue.get("value") == claim2.mainsnak.datavalue.get("value")
+    elif claim1.mainsnak.datatype == "globe-coordinate":
+        val1 = claim1.mainsnak.datavalue.get("value", {})
+        val2 = claim2.mainsnak.datavalue.get("value", {})
+        return (val1.get("latitude") == val2.get("latitude") and 
+                val1.get("longitude") == val2.get("longitude"))
+    elif claim1.mainsnak.datatype == "quantity":
+        return claim1.mainsnak.datavalue.get("value") == claim2.mainsnak.datavalue.get("value")
+    elif claim1.mainsnak.datatype == "time":
+        return claim1.mainsnak.datavalue.get("value") == claim2.mainsnak.datavalue.get("value")
+    else:
+        # For most types, compare the value directly
+        return claim1.mainsnak.datavalue == claim2.mainsnak.datavalue
+
+
 def _is_list_annotation(annotation) -> bool:
     """Return True if annotation is list[T] or list[T] | None (Optional list)."""
     origin = get_origin(annotation)
@@ -183,15 +211,36 @@ def update_item_from_model(model: BaseModel, item: ItemEntity):
         # Statement-reference field
         stmt_type = get_statement_field_type(field_metadata.annotation)
         if stmt_type is not None:
-            subject_field = stmt_type.get_statement_subject(WIKIBASE_ID)
-            subject_prop_id = stmt_type.model_fields[subject_field].json_schema_extra.get(WIKIBASE_ID)
-            subject_prop_nr = Wikibase.get_entity_id(subject_prop_id)
-            _remove_property_claims(item, subject_prop_nr)
             values = field_value if isinstance(field_value, list) else ([field_value] if field_value else [])
             for stmt in values:
                 if stmt is not None:
-                    claim = create_qualified_statement_from_model(stmt)
-                    item.claims.add(claim, action_if_exists=ActionIfExists.FORCE_APPEND)
+                    new_claim = create_qualified_statement_from_model(stmt)
+                    # Check if a claim with the same main value already exists
+                    subject_field = stmt_type.get_statement_subject(WIKIBASE_ID)
+                    subject_prop_id = stmt_type.model_fields[subject_field].json_schema_extra.get(WIKIBASE_ID)
+                    subject_prop_nr = Wikibase.get_entity_id(subject_prop_id)
+                    
+                    existing_claims = item.claims.get(subject_prop_nr)
+                    matching_claim = None
+                    if existing_claims:
+                        for existing in existing_claims:
+                            if _claims_have_same_value(existing, new_claim):
+                                matching_claim = existing
+                                break
+                    
+                    if matching_claim is not None:
+                        # If the new claim has qualifiers or references, use those (from the form)
+                        # Otherwise, preserve existing qualifiers and references
+                        if not new_claim.qualifiers and matching_claim.qualifiers:
+                            new_claim.qualifiers = matching_claim.qualifiers
+                        if not new_claim.references and matching_claim.references:
+                            new_claim.references = matching_claim.references
+                        # Remove the old claim and add the new one (which now has the right qualifiers/references)
+                        matching_claim.remove()
+                        item.claims.add(new_claim, action_if_exists=ActionIfExists.FORCE_APPEND)
+                    else:
+                        # No matching claim, just add the new one
+                        item.claims.add(new_claim, action_if_exists=ActionIfExists.FORCE_APPEND)
             continue
 
         extra = _get_schema_extra(field_metadata)
@@ -216,8 +265,8 @@ def update_item_from_model(model: BaseModel, item: ItemEntity):
         else:
             is_list = _is_list_annotation(field_metadata.annotation)
             if field_value is None:
-                prop_nr = Wikibase.get_entity_id(field_prop_id)
-                _remove_property_claims(item, prop_nr)
+                # Don't remove existing claims if the field is not set in the form
+                # This preserves existing qualifiers and references
                 continue
             values = field_value if isinstance(field_value, list) else [field_value]
             claims = [
@@ -234,9 +283,27 @@ def update_item_from_model(model: BaseModel, item: ItemEntity):
             prop_nr = Wikibase.get_entity_id(field_prop_id)
 
             if is_list:
-                _remove_property_claims(item, prop_nr)
-                for claim in claims:
-                    item.claims.add(claim, action_if_exists=ActionIfExists.FORCE_APPEND)
+                # For list fields, check for existing claims with same value and preserve qualifiers/references
+                existing_claims = item.claims.get(prop_nr) or []
+                for new_claim in claims:
+                    matching_claim = None
+                    for existing in existing_claims:
+                        if _claims_have_same_value(existing, new_claim):
+                            matching_claim = existing
+                            break
+                    
+                    if matching_claim is not None:
+                        # Preserve existing qualifiers and references if the new claim has none
+                        if not new_claim.qualifiers and matching_claim.qualifiers:
+                            new_claim.qualifiers = matching_claim.qualifiers
+                        if not new_claim.references and matching_claim.references:
+                            new_claim.references = matching_claim.references
+                        # Remove the old claim and add the new one
+                        matching_claim.remove()
+                        item.claims.add(new_claim, action_if_exists=ActionIfExists.FORCE_APPEND)
+                    else:
+                        # No matching claim, just add the new one
+                        item.claims.add(new_claim, action_if_exists=ActionIfExists.FORCE_APPEND)
             elif field_type == datatypes.MonolingualText.DTYPE:
                 existing = item.claims.get(prop_nr)
                 matched = next(

@@ -272,6 +272,16 @@ slots:
       wikibase_type: item    
 
   # Qualifier
+  position:
+    range: quantity
+    local_names:
+      en:
+        local_name_value: "Serial number"
+      de:
+        local_name_value: "Position in Folge"
+    annotations:
+      wikibase_id: "https://database.factgrid.de/prop/qualifier/P499"
+      wikibase_type: quantity  
   begin_date:
     range: string
     local_names:

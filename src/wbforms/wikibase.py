@@ -309,7 +309,7 @@ class Wikibase(BaseModel):
             # Remove sitelinks to avoid validation errors when the linked pages don't exist
             # The editor doesn't modify sitelinks, so it's safe to remove them before writing
             if hasattr(item, 'sitelinks') and item.sitelinks:
-                item.sitelinks.sitelinks.clear()                
+                item.sitelinks.sitelinks.clear()
             res = item.write(
                 mediawiki_api_url=self.mediawiki_api_url,
                 summary=summary,
@@ -318,10 +318,34 @@ class Wikibase(BaseModel):
                 user_agent=get_default_user_agent(),
                 **kwargs,
             )
+            return res
         except Exception as e:
-            logger.error(f"Failed to write item {item.id}: {e}")
-            raise e
-        return res
+            error_str = str(e)
+            # If the error is about commonsMedia validation, remove those claims and retry
+            if ("commonsmedia" in error_str.lower() or
+                "does not exist on" in error_str.lower()):
+                logger.warning(f"First write attempt failed due to validation: {e}. Removing commonsMedia claims and retrying...")
+                # Remove commonsMedia claims
+                claims_to_remove = []
+                for claim in item.claims:
+                    if claim.mainsnak and claim.mainsnak.datatype == "commonsMedia":
+                        claims_to_remove.append(claim)
+                for claim in claims_to_remove:
+                    claim.remove()
+                
+                # Retry writing
+                res = item.write(
+                    mediawiki_api_url=self.mediawiki_api_url,
+                    summary=summary,
+                    tags=tags,
+                    login=self.wbi.login,
+                    user_agent=get_default_user_agent(),
+                    **kwargs,
+                )
+                return res
+            else:
+                logger.error(f"Failed to write item {item.id}: {e}")
+                raise e
 
     @staticmethod
     def get_entity_id(entity_url: str) -> str:
