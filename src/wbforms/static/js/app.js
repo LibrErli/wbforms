@@ -125,6 +125,7 @@ const App = {
        <a href="https://www.saxorum.de/impressum" class="link-btn" style="text-decoration:none; font-size: 0.65rem;">{{ t('footer_impressum') }}</a>
       </div>
       <div>
+        <a href="https://km-a.net"><img src="/static/images/knowledgewiki.svg" alt="Logo" style="height: 40px; margin-right: 1rem; vertical-align: middle;"></a>    
         <a href="https://github.com/FactGrid/wbforms" style="color: #333; text-decoration: none;" aria-label="GitHub" title="derrived from FactGrid/wbforms">
           <img src="/static/images/github.png" style="height: 30px;"/>
         </a>
