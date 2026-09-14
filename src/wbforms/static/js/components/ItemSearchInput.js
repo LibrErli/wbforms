@@ -116,7 +116,7 @@ export default {
         try {
           suggestions.value =
             (await apiFetch(
-              `/api/entity-search?q=${encodeURIComponent(q)}&limit=8`,
+              `/api/entity-search?q=${encodeURIComponent(q)}&limit=80`,
             )) || [];
           searchError.value = "";
         } catch (e) {
