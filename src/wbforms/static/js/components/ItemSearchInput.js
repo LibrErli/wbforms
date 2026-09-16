@@ -26,11 +26,19 @@ export default {
 
     // --- Initialise from prop ---
     async function initFromQid(qid) {
+      console.log(`ItemSearchInput.initFromQid - starting for qid:`, qid);
       selectedQid.value = qid;
       selectedLabel.value = "";
       isSearching.value = false;
+      console.log(`ItemSearchInput.initFromQid - set isSearching=false, selectedQid=`, selectedQid.value);
       const label = await getLabel(qid);
-      if (selectedQid.value === qid) selectedLabel.value = label;
+      console.log(`ItemSearchInput.initFromQid - got label for ${qid}:`, label);
+      if (selectedQid.value === qid) {
+        selectedLabel.value = label;
+        console.log(`ItemSearchInput.initFromQid - set selectedLabel=`, selectedLabel.value);
+      } else {
+        console.log(`ItemSearchInput.initFromQid - WARNING: selectedQid changed, not setting label`);
+      }
     }
 
     // Initialise (and re-initialise) the chip/label from the current value via an immediate watch.
@@ -40,10 +48,13 @@ export default {
     watch(
       () => props.modelValue,
       (v) => {
+        console.log(`ItemSearchInput watch - modelValue changed to:`, v, `current selectedQid:`, selectedQid.value);
         if (v === selectedQid.value) return;
         if (v && /^Q\d+$/i.test(v)) {
+          console.log(`ItemSearchInput - calling initFromQid with:`, v);
           initFromQid(v);
         } else {
+          console.log(`ItemSearchInput - clearing selection`);
           selectedQid.value = "";
           selectedLabel.value = "";
           isSearching.value = true;
