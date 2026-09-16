@@ -14,9 +14,14 @@ export default {
   },
   emits: ["update:modelValue", "update:sources"],
   setup(props, { emit }) {
-    const { computed } = Vue;
+    const { computed, watch } = Vue;
     const { t } = useI18n();
 
+    // Log field props to check for default_value (especially for instance_of)
+    if (props.field.name === "instance_of") {
+      console.log("FieldInput setup - instance_of field:", props.field);
+    }
+    
     const isItem = computed(
       () => props.field.wikibase_type === "wikibase-item",
     );

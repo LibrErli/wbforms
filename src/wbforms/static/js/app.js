@@ -74,6 +74,22 @@ const App = {
       if (!isLoggedIn.value) return;
       try {
         state.schema = await apiFetch(`/api/schema/entities?language=${locale.value}`);
+        console.log("Schema loaded:", state.schema);
+        // Check for FamilyName entity and its instance_of field
+        const familyNameEntity = state.schema?.find(e => e.name === "FamilyName");
+        if (familyNameEntity) {
+          console.log("FamilyName entity:", familyNameEntity);
+          const instanceOfField = familyNameEntity.fields?.find(f => f.name === "instance_of");
+          if (instanceOfField) {
+            console.log("instance_of field in FamilyName:", instanceOfField);
+            console.log("instance_of default_value:", instanceOfField.default_value);
+            console.log("instance_of annotations:", instanceOfField.annotations);
+          } else {
+            console.log("instance_of field not found in FamilyName fields");
+          }
+        } else {
+          console.log("FamilyName entity not found in schema");
+        }
       } catch (e) {
         state.schemaError = e.message;
       }
