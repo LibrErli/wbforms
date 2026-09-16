@@ -2,9 +2,11 @@
 
 from pathlib import Path
 from typing import get_args
+import html
+import re
 
-import yaml
 import httpx
+import yaml
 from fastapi import APIRouter, Query
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
@@ -244,6 +246,12 @@ def get_public_config() -> dict:
     s = get_settings()
     return {
         "oauth_version": s.oauth_version,
+        "oauth_configured": bool(
+            s.oauth_client_id
+            and s.oauth_client_secret
+            and s.oauth_client_secret.get_secret_value()
+            and s.oauth_redirect_uri
+        ),
         "wikibase_website": s.wikibase_website.unicode_string(),
     }
 
@@ -284,54 +292,48 @@ async def entity_search(q: str = Query(..., min_length=1), limit: int = 10, lang
     async with httpx.AsyncClient() as client:
         resp = await client.get(
             get_settings().wikibase_mediawiki_api_url.unicode_string(),
-            params={
-                "action": "wbsearchentities",
-                "search": q,
-                "language": language,
-                "strictlanguage": 1,
-                "uselang": language,
-                "type": "item",
+            # Params-Dict for API:wbsearchentities
+            # Problem searching for labels without phrasing/masking, so e.g.
+            # you won't find 'Friedrich Melchior Grimm' with search-q 'Grimm'
+            # but you will find other X Y Grimm because e.g. they have 'Grimm' in Alias.
+            # Swapping to API:query list=search returns better results.
+            # params={
+            #     "action": "wbsearchentities",
+            #     "search": q,
+            #     "language": language,
+            #     "strictlanguage": 1,
+            #     "uselang": language,
+            #     "type": "item",
+            #     "format": "json",
+            #     "formatversion": 2,
+            #     "limit": limit,
+            # },
+            params = {
+                "action": "query",
                 "format": "json",
+                "uselang": language,
+                "list": "search",
                 "formatversion": 2,
-                "limit": limit,
+                "srsearch": q,
+                "srnamespace": "120",
+                "srlimit": limit,
+                "srprop": "size|wordcount|timestamp|snippet|titlesnippet|extensiondata|redirecttitle|sectiontitle"
             },
             timeout=10.0,
         )
         resp.raise_for_status()
-    results = []
-    for r in resp.json().get("search", []):
-        label = r["id"]  # Default fallback
-        description = ""
-        
-        # Strategy: FactGrid returns match.text with the actual matched text in the search language
-        # and display.label.value with the label in display language
-        match = r.get("match", {})
-        display = r.get("display", {})
-        
-        # 1. Try match.text first (contains the text that matched in search language)
-        if match.get("language") == language:
-            label = match.get("text") or label
-        
-        # 2. Try display label if it's in the requested language
-        display_label_info = display.get("label", {})
-        if display_label_info.get("language") == language:
-            label = display_label_info.get("value") or label
-            description = display.get("description", {}).get("value", "")
-        
-        # 3. Fallbacks from root level
-        if not label:
-            label = r.get("label", r["id"])
-        if not description:
-            description = r.get("description", "")
-        
-        results.append({
-            "id": r["id"],
-            "label": label,
-            "description": description,
-            "match": match,
-            "display":display
-        })
-    return results
+        results = []
+        for r in resp.json().get("query", {}).get("search", []):
+            def clean_html(text):
+                return html.unescape(re.sub(r'<[^>]+>', '', text))
+            results.append({
+                "id": re.sub("Item:", "", r.get("title", "")),
+                "label": clean_html(r.get("titlesnippet", r.get("title", ""))),
+                "description": clean_html(r.get("snippet", "")),
+                "match": None,
+                "display": clean_html(r.get("titlesnippet", r.get("title", ""))),
+            })
+        return results
 
 
 @router.get("/api/entity-label")
@@ -360,9 +362,21 @@ async def entity_label(qid: str = Query(...), language: str = "de") -> dict:
 
 @router.get("/")
 def serve_index() -> FileResponse:
-    return FileResponse(_STATIC_DIR / "index.html")
+    return _index_response()
 
 
 @router.get("/form/{path:path}")
 def serve_form(path: str) -> FileResponse:
-    return FileResponse(_STATIC_DIR / "index.html")
+    return _index_response()
+
+
+def _index_response() -> FileResponse:
+    """Serve the SPA shell without allowing stale cross-deployment caching."""
+    return FileResponse(
+        _STATIC_DIR / "index.html",
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+            "Pragma": "no-cache",
+            "Expires": "0",
+        },
+    )

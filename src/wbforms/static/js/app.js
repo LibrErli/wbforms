@@ -73,13 +73,16 @@ const App = {
     async function loadSchema() {
       if (!isLoggedIn.value) return;
       try {
-        state.schema = await apiFetch(`/api/schema/entities?language=${locale.value}`);
+        state.schema = await apiFetch(
+          `/api/schema/entities?language=${locale.value}`,
+        );
       } catch (e) {
         state.schemaError = e.message;
       }
     }
 
     function onLogin(token) {
+      localStorage.setItem("token", token);
       state.token = token;
       state.username = usernameFromToken(token);
       state.schemaError = null;
@@ -97,11 +100,14 @@ const App = {
     loadSchema();
 
     // Reload schema when language changes
-    watch(() => locale.value, () => {
-      if (isLoggedIn.value) {
-        loadSchema();
-      }
-    });
+    watch(
+      () => locale.value,
+      () => {
+        if (isLoggedIn.value) {
+          loadSchema();
+        }
+      },
+    );
 
     return { state, isLoggedIn, onLogin, onLogout, t };
   },
@@ -118,14 +124,15 @@ const App = {
     </div>
     <entity-editor v-else :schema="state.schema" :username="state.username" @logout="onLogout" />
 
-    <footer style="margin-top: 2rem; padding: 1rem; border-top: 1px solid #ddd; background: #f9f9f9; display: flex; justify-content: space-between; align-items: center;">
+    <footer style="position:fixed; bottom:0; z-index:100; width:100%; padding: 1rem; border-top: 1px solid #ddd; background: #f9f9f9; display: flex; justify-content: space-between; align-items: center;">
       <div>
        <a href="https://säbig.de"><img src="/static/images/saebig_logo.svg" alt="Logo" style="height: 40px; margin-right: 1rem; vertical-align: middle;"></a>  
        <a href="https://saxorum.de"><img src="/static/images/sxrmLogo.svg" alt="Logo" style="height: 30px; margin-right: 1rem; vertical-align: middle;"></a>
        <a href="https://www.saxorum.de/impressum" class="link-btn" style="text-decoration:none; font-size: 0.65rem;">{{ t('footer_impressum') }}</a>
       </div>
       <div>
-        <a href="https://github.com/FactGrid/wbforms" style="color: #333; text-decoration: none;" aria-label="GitHub" title="derrived from FactGrid/wbforms">
+	<a href="https://km-a.net"><img src="/static/images/knowledgewiki.svg" alt="Logo" style="height: 40px; margin-right: 1rem; vertical-align: middle;"></a>
+	<a href="https://github.com/FactGrid/wbforms" style="color: #333; text-decoration: none;" aria-label="GitHub" title="derrived from FactGrid/wbforms">
           <img src="/static/images/github.png" style="height: 30px;"/>
         </a>
       </div>
