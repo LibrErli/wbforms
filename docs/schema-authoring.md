@@ -111,6 +111,69 @@ recorded before the subject item exists (see `object_named_as` below).
 > `factgrid_besucherbuch.yaml` are *not* consumed for form labels yet — choose readable
 > slot names.
 
+### Default values via `slot_usage`
+
+You can define default values for fields on a per-class basis using `slot_usage` with a
+`default_value` annotation. This is useful when a field should have a consistent default
+value for a specific entity type.
+
+```yaml
+classes:
+  FamilyName:
+    annotations:
+      python_base: entity_item
+    slots:
+      - instance_of
+      - description
+    slot_usage:
+      instance_of:
+        annotations:
+          default_value: Q24499
+```
+
+The `default_value` is applied:
+
+- When creating a new entity/statement/reference — the field is initialized with this value
+- When loading existing data that lacks a value for this field — the default is used as a fallback
+- In the form UI — the field displays with the default value pre-selected (chip displays with label)
+
+Default values work for all field types:
+
+- **Item fields** (`wikibase_type: item`) — the QID is set and the label is fetched and displayed
+- **Statement fields** — fields within statement classes (e.g., `station_id` in `StayIn`)
+- **Reference fields** — fields within `WikibaseReference` (e.g., `ref_primary_source`)
+
+Example with statement and reference classes:
+
+```yaml
+  StayIn:
+    annotations:
+      python_base: extracted_statement
+    slots:
+      - station_id
+      - begin_date
+      - end_date
+    slot_usage:
+      station_id:
+        annotations:
+          default_value: Q1872083
+
+  WikibaseReference:
+    annotations:
+      python_base: wikibase_reference
+    slots:
+      - ref_primary_source
+      - ref_page
+    slot_usage:
+      ref_primary_source:
+        annotations:
+          default_value: Q1871961
+```
+
+> **Note:** Default values are transmitted through the `json_schema_extra` of Pydantic models
+> and included in the `/api/schema/entities` endpoint response. The frontend JavaScript
+> reads these values and applies them when initializing form fields.
+
 ## 3. Defining classes
 
 ### Item classes (`entity_item`)
@@ -209,9 +272,10 @@ Use `is_a` plus `slot_usage` to derive variants; the `python_base` is inherited:
 ```
 
 `slot_usage` can override `required`, annotations (`wikibase_id`, `wikibase_type`,
-`supports_references`), etc. Annotation overrides are *merged* with the global slot
+`supports_references`, `default_value`), etc. Annotation overrides are *merged* with the global slot
 definition (the class-level value wins on conflicts). `ScholarlyArticle is_a Paper` in
-`ceur_graph.yaml` shows the same pattern for item classes.
+`ceur_graph.yaml` shows the same pattern for item classes. See § 2 for details on using
+`default_value` in `slot_usage`.
 
 ## 4. Attaching statements to items (statement-reference slots)
 
@@ -399,3 +463,5 @@ metadata. Point the `WBFORMS_WIKIBASE_*` variables at your Wikibase instance (se
 - [ ] Property IRIs must point at the **target** Wikibase (the one in
       `WBFORMS_WIKIBASE_WEBSITE`), not at Wikidata — `wikidata_id` is the place for the
       Wikidata mapping.
+- [ ] Default values set via `slot_usage.default_value` are only applied when creating new
+      items or when existing data lacks a value for that field.
