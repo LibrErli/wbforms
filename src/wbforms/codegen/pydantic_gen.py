@@ -10,8 +10,6 @@ from wikibaseintegrator import datatypes
 from wikibaseintegrator.wbi_enums import WikibaseSnakType
 
 from wbforms.datamodel.item import (
-    CALENDAR_FIELD_SUFFIX,
-    CALENDAR_MODEL,
     WIKIBASE_ID,
     WIKIBASE_TYPE,
     WIKIDATA_ID,
@@ -23,14 +21,9 @@ from wbforms.datamodel.item import (
     WikibaseReferenceBase,
 )
 from wbforms.datamodel.utils import make_field_optional, make_partial_model
-from wbforms.wb_calendar import normalize_calendar_model
 
 WIKIBASE_REFERENCE_CLASS_NAME = "WikibaseReference"
 SUPPORTS_REFERENCES_ANNOTATION = "supports_references"
-#: Slot-level annotation naming the default calendar model of a `time` slot.
-CALENDAR_MODEL_ANNOTATION = "calendar_model"
-#: Schema-root annotation naming the default calendar model of every `time` slot.
-DEFAULT_CALENDAR_MODEL_ANNOTATION = "default_calendar_model"
 
 # Term slots an entity_item class may declare to control requiredness of the
 # label/description inherited from EntityBase. Maps slot name → fixed sentinel.
@@ -56,7 +49,6 @@ WIKIBASE_DTYPE_MAP: dict[str, str] = {
     "string": datatypes.String.DTYPE,
     "external-id": datatypes.ExternalID.DTYPE,
     "quantity": datatypes.Quantity.DTYPE,
-    "time": datatypes.Time.DTYPE,
 }
 
 PYTHON_BASE_INFO: dict[str, tuple[type, type]] = {
@@ -130,21 +122,8 @@ def _class_needs_wikibase_reference(view: SchemaView, cls) -> bool:
     return False
 
 
-def _is_time_slot(anns: dict[str, str]) -> bool:
-    """True if the slot maps to the Wikibase `time` datatype."""
-    wb_type = anns.get("wikibase_type")
-    if not wb_type:
-        return False
-    return WIKIBASE_DTYPE_MAP.get(wb_type, wb_type) == datatypes.Time.DTYPE
-
-
 def _build_field_def(
-    slot,
-    anns: dict[str, str],
-    is_required: bool,
-    is_stmt_subject: bool,
-    models: dict,
-    schema_calendar_model: str | None = None,
+    slot, anns: dict[str, str], is_required: bool, is_stmt_subject: bool, models: dict
 ) -> tuple[Any, Any]:
     """Return (python_type, FieldInfo) for a single slot."""
     range_name = slot.range or "string"
@@ -264,7 +243,6 @@ def generate_models(schema_path: Path) -> dict[str, type]:
     """Parse the LinkML schema and return a dict of generated Pydantic model classes."""
     raw = yaml.safe_load(schema_path.read_text(encoding="utf-8"))
     raw.pop("endpoints", None)
-    schema_calendar_model = _ann_dict(raw.get("annotations")).get(DEFAULT_CALENDAR_MODEL_ANNOTATION)
     view = SchemaView(yaml.dump(raw))
     models: dict[str, type] = {}
 
@@ -313,20 +291,8 @@ def generate_models(schema_path: Path) -> dict[str, type]:
             if is_stmt_subj:
                 is_req = False
 
-            py_type, field_info = _build_field_def(induced, anns, is_req, is_stmt_subj, models, schema_calendar_model)
+            py_type, field_info = _build_field_def(induced, anns, is_req, is_stmt_subj, models)
             field_defs[slot_name] = (py_type, field_info)
-
-            # Time slots: pair the slot with a sibling `<slot>_calendar` field carrying the
-            # per-value calendar model, so an existing Julian date survives a round-trip and
-            # the form can override it. For multivalued slots the sibling is positional.
-            if _is_time_slot(anns):
-                if induced.multivalued:
-                    field_defs[f"{slot_name}{CALENDAR_FIELD_SUFFIX}"] = (
-                        list[str],
-                        Field(default_factory=list),
-                    )
-                else:
-                    field_defs[f"{slot_name}{CALENDAR_FIELD_SUFFIX}"] = (str | None, Field(default=None))
 
             # Slot-level supports_references: pair the slot with a sibling `<slot>_sources` field.
             if _truthy(anns.get(SUPPORTS_REFERENCES_ANNOTATION)) and ref_cls is not None:

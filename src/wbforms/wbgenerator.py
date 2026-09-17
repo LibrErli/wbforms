@@ -13,7 +13,6 @@ from wikibaseintegrator.models.references import Reference as WBIReference
 from wikibaseintegrator.wbi_enums import ActionIfExists, WikibaseSnakType
 
 from wbforms.datamodel.item import (
-    CALENDAR_MODEL,
     WIKIBASE_ID,
     WIKIBASE_TYPE,
     Coordinate,
@@ -21,9 +20,7 @@ from wbforms.datamodel.item import (
     Statement,
     StatementBase,
     WikibaseReferenceBase,
-    calendar_field_name,
 )
-from wbforms.wb_calendar import DEFAULT_CALENDAR_MODEL, normalize_calendar_model
 from wbforms.wikibase import Wikibase
 
 logger = logging.getLogger(__name__)
@@ -92,6 +89,34 @@ def _statement_ids_equal(a: str | None, b: str | None) -> bool:
     return a.lower() == b.lower()
 
 
+def _claims_have_same_value(claim1: Claim, claim2: Claim) -> bool:
+    """Check if two claims have the same main value.
+    
+    This is used to identify duplicate claims when updating items,
+    to preserve existing qualifiers and references.
+    """
+    if claim1.mainsnak is None or claim2.mainsnak is None:
+        return False
+    if claim1.mainsnak.datatype != claim2.mainsnak.datatype:
+        return False
+    
+    # Compare based on datatype
+    if claim1.mainsnak.datatype == "commonsMedia":
+        return claim1.mainsnak.datavalue.get("value") == claim2.mainsnak.datavalue.get("value")
+    elif claim1.mainsnak.datatype == "globe-coordinate":
+        val1 = claim1.mainsnak.datavalue.get("value", {})
+        val2 = claim2.mainsnak.datavalue.get("value", {})
+        return (val1.get("latitude") == val2.get("latitude") and 
+                val1.get("longitude") == val2.get("longitude"))
+    elif claim1.mainsnak.datatype == "quantity":
+        return claim1.mainsnak.datavalue.get("value") == claim2.mainsnak.datavalue.get("value")
+    elif claim1.mainsnak.datatype == "time":
+        return claim1.mainsnak.datavalue.get("value") == claim2.mainsnak.datavalue.get("value")
+    else:
+        # For most types, compare the value directly
+        return claim1.mainsnak.datavalue == claim2.mainsnak.datavalue
+
+
 def _is_list_annotation(annotation) -> bool:
     """Return True if annotation is list[T] or list[T] | None (Optional list)."""
     origin = get_origin(annotation)
@@ -152,7 +177,6 @@ def create_item_from_model(model: BaseModel, wbi: WikibaseIntegrator) -> ItemEnt
                     datatype=field_type,
                     value=value,
                     language=default_language,
-                    calendarmodel=_calendar_model_for(model, field_name, extra, idx if is_list_field else None),
                 )
                 if claim is None:
                     continue
@@ -187,15 +211,36 @@ def update_item_from_model(model: BaseModel, item: ItemEntity):
         # Statement-reference field
         stmt_type = get_statement_field_type(field_metadata.annotation)
         if stmt_type is not None:
-            subject_field = stmt_type.get_statement_subject(WIKIBASE_ID)
-            subject_prop_id = stmt_type.model_fields[subject_field].json_schema_extra.get(WIKIBASE_ID)
-            subject_prop_nr = Wikibase.get_entity_id(subject_prop_id)
-            _remove_property_claims(item, subject_prop_nr)
             values = field_value if isinstance(field_value, list) else ([field_value] if field_value else [])
             for stmt in values:
                 if stmt is not None:
-                    claim = create_qualified_statement_from_model(stmt)
-                    item.claims.add(claim, action_if_exists=ActionIfExists.FORCE_APPEND)
+                    new_claim = create_qualified_statement_from_model(stmt)
+                    # Check if a claim with the same main value already exists
+                    subject_field = stmt_type.get_statement_subject(WIKIBASE_ID)
+                    subject_prop_id = stmt_type.model_fields[subject_field].json_schema_extra.get(WIKIBASE_ID)
+                    subject_prop_nr = Wikibase.get_entity_id(subject_prop_id)
+                    
+                    existing_claims = item.claims.get(subject_prop_nr)
+                    matching_claim = None
+                    if existing_claims:
+                        for existing in existing_claims:
+                            if _claims_have_same_value(existing, new_claim):
+                                matching_claim = existing
+                                break
+                    
+                    if matching_claim is not None:
+                        # If the new claim has qualifiers or references, use those (from the form)
+                        # Otherwise, preserve existing qualifiers and references
+                        if not new_claim.qualifiers and matching_claim.qualifiers:
+                            new_claim.qualifiers = matching_claim.qualifiers
+                        if not new_claim.references and matching_claim.references:
+                            new_claim.references = matching_claim.references
+                        # Remove the old claim and add the new one (which now has the right qualifiers/references)
+                        matching_claim.remove()
+                        item.claims.add(new_claim, action_if_exists=ActionIfExists.FORCE_APPEND)
+                    else:
+                        # No matching claim, just add the new one
+                        item.claims.add(new_claim, action_if_exists=ActionIfExists.FORCE_APPEND)
             continue
 
         extra = _get_schema_extra(field_metadata)
@@ -219,38 +264,46 @@ def update_item_from_model(model: BaseModel, item: ItemEntity):
                 )
         else:
             is_list = _is_list_annotation(field_metadata.annotation)
-            prop_nr = Wikibase.get_entity_id(field_prop_id)
             if field_value is None:
                 # Don't remove existing claims if the field is not set in the form
                 # This preserves existing qualifiers and references
                 continue
             values = field_value if isinstance(field_value, list) else [field_value]
-            # Snapshot the calendar models already stored under this property before the
-            # claims are replaced, so a date the user did not explicitly re-calendar keeps
-            # the calendar it was saved with.
-            stored_calendars = _stored_calendar_models(
-                [c.mainsnak for c in (item.claims.get(prop_nr) or []) if not c.removed]
-            )
-            claims = []
-            for idx, v in enumerate(values):
-                explicit_calendar = _explicit_calendar_model(model, field_name, idx if is_list else None)
-                claim = get_claim(
-                    prop_id=field_prop_id,
-                    datatype=field_type,
-                    value=v,
-                    language=default_language,
-                    calendarmodel=explicit_calendar or normalize_calendar_model(extra.get(CALENDAR_MODEL)),
+            claims = [
+                c
+                for c in (
+                    get_claim(prop_id=field_prop_id, datatype=field_type, value=v, language=default_language)
+                    for v in values
                 )
                 if c is not None
             ]
+            if not claims:
+                continue
+
             prop_nr = Wikibase.get_entity_id(field_prop_id)
 
             if is_list:
-                _remove_property_claims(item, prop_nr)
-                for claim in claims:
-                    item.claims.add(claim, action_if_exists=ActionIfExists.FORCE_APPEND)
-            elif not claims:
-                continue
+                # For list fields, check for existing claims with same value and preserve qualifiers/references
+                existing_claims = item.claims.get(prop_nr) or []
+                for new_claim in claims:
+                    matching_claim = None
+                    for existing in existing_claims:
+                        if _claims_have_same_value(existing, new_claim):
+                            matching_claim = existing
+                            break
+                    
+                    if matching_claim is not None:
+                        # Preserve existing qualifiers and references if the new claim has none
+                        if not new_claim.qualifiers and matching_claim.qualifiers:
+                            new_claim.qualifiers = matching_claim.qualifiers
+                        if not new_claim.references and matching_claim.references:
+                            new_claim.references = matching_claim.references
+                        # Remove the old claim and add the new one
+                        matching_claim.remove()
+                        item.claims.add(new_claim, action_if_exists=ActionIfExists.FORCE_APPEND)
+                    else:
+                        # No matching claim, just add the new one
+                        item.claims.add(new_claim, action_if_exists=ActionIfExists.FORCE_APPEND)
             elif field_type == datatypes.MonolingualText.DTYPE:
                 existing = item.claims.get(prop_nr)
                 matched = next(
@@ -333,84 +386,13 @@ def _infer_time_precision(time_str: str) -> int:
     return 11
 
 
-def get_snak_calendar_model(snak: Snak) -> str | None:
-    """Return the calendar model IRI of a `time` snak, or None for any other datatype."""
-    if snak.datatype != datatypes.Time.DTYPE:
-        return None
-    datavalue = snak.datavalue or {}
-    return (datavalue.get("value") or {}).get("calendarmodel")
-
-
-def _explicit_calendar_model(model: BaseModel, field_name: str, index: int | None = None) -> str | None:
-    """Calendar model the *model* explicitly carries for ``field_name``, if any.
-
-    Only fields the caller actually provided count (``model_fields_set``): an absent
-    sibling means "keep whatever is stored", not "reset to the default". For a
-    multivalued slot the sibling is positional, mirroring ``<slot>_sources``.
-    """
-    sibling = calendar_field_name(field_name)
-    if sibling not in type(model).model_fields or sibling not in model.model_fields_set:
-        return None
-    value = getattr(model, sibling, None)
-    if isinstance(value, list):
-        if index is None or index >= len(value):
-            return None
-        value = value[index]
-    return normalize_calendar_model(value)
-
-
-def _calendar_model_for(model: BaseModel, field_name: str, extra: Any, index: int | None = None) -> str | None:
-    """Calendar model to write: explicit model value, else the schema-declared slot default."""
-    return _explicit_calendar_model(model, field_name, index) or normalize_calendar_model(extra.get(CALENDAR_MODEL))
-
-
-def _stored_calendar_models(snaks: list[Snak]) -> list[tuple[str | None, str | None]]:
-    """(time string, calendar model) pairs of the given `time` snaks."""
-    stored: list[tuple[str | None, str | None]] = []
-    for snak in snaks:
-        if snak.datatype != datatypes.Time.DTYPE:
-            continue
-        value = (snak.datavalue or {}).get("value") or {}
-        stored.append((value.get("time"), value.get("calendarmodel")))
-    return stored
-
-
-def _inherit_calendar_model(claim: Claim, stored: list[tuple[str | None, str | None]], single_valued: bool) -> None:
-    """Carry a previously stored calendar model over onto a freshly built `time` claim.
-
-    Wikibase writes replace whole snaks, so without this a re-submitted (or merely
-    corrected) Julian date would silently come back as the default Gregorian.
-
-    A single-valued slot has exactly one predecessor, so its calendar carries over even
-    when the date itself changes — correcting the day of a Julian date keeps it Julian.
-    Multivalued slots are removed and rebuilt wholesale, leaving no reliable positional
-    identity, so those are matched on the time string and otherwise keep the default.
-    """
-    if claim.mainsnak.datatype != datatypes.Time.DTYPE or not stored:
-        return
-    if single_valued:
-        inherited = stored[0][1]
-    else:
-        time_str = ((claim.mainsnak.datavalue or {}).get("value") or {}).get("time")
-        inherited = next((cal for t, cal in stored if t == time_str), None)
-    if inherited:
-        claim.mainsnak.datavalue["value"]["calendarmodel"] = inherited
-
-
-def get_claim(
-    prop_id: str,
-    datatype: str,
-    value: Any,
-    language: str | None = None,
-    calendarmodel: str | None = None,
-) -> Claim | None:
+def get_claim(prop_id: str, datatype: str, value: Any, language: str | None = None) -> Claim | None:
     """
     Get claim
     :param prop_id:
     :param datatype:
     :param value:
     :param language:
-    :param calendarmodel: calendar model (QID or IRI) for `time` values; ignored otherwise
     :return:
     """
     if language is None:
@@ -431,12 +413,7 @@ def get_claim(
         case datatypes.String.DTYPE:
             claim = datatypes.String(value=str(value), prop_nr=prop_nr)
         case datatypes.Time.DTYPE:
-            claim = datatypes.Time(
-                time=value,
-                precision=_infer_time_precision(value),
-                prop_nr=prop_nr,
-                calendarmodel=normalize_calendar_model(calendarmodel) or DEFAULT_CALENDAR_MODEL,
-            )
+            claim = datatypes.Time(time=value, precision=_infer_time_precision(value), prop_nr=prop_nr)
         case datatypes.ExternalID.DTYPE:
             claim = datatypes.ExternalID(value=value, prop_nr=prop_nr)
         case datatypes.Quantity.DTYPE:
@@ -499,11 +476,11 @@ def get_model_from_item(item: ItemEntity, model: type[BaseModel]) -> BaseModel:
         if field_prop_id == "rdf:subject":
             field_value = item.id
         elif field_prop_id == "rdfs:label":
-            label = item.labels.get(default_language) or item.labels.get("en")
+            label = item.labels.get(default_language)
             if label is not None:
                 field_value = label.value
         elif field_prop_id == "schema:description":
-            description = item.descriptions.get(default_language) or item.descriptions.get("en")
+            description = item.descriptions.get(default_language)
             if description is not None:
                 field_value = description.value
         else:
@@ -513,18 +490,12 @@ def get_model_from_item(item: ItemEntity, model: type[BaseModel]) -> BaseModel:
             sources_field_name = f"{field_name}_sources"
             sources_field = model.model_fields.get(sources_field_name)
             ref_cls = _wikibase_reference_class(sources_field) if sources_field is not None else None
-            cal_field_name = calendar_field_name(field_name)
-            has_cal_field = cal_field_name in model.model_fields
             if _is_list_annotation(field_metadata.annotation):
                 values = [get_snak_value(claim.mainsnak) for claim in claims]
                 values = [value for value in values if value is not None]
                 field_value = values
                 if ref_cls is not None:
                     record[sources_field_name] = [_extract_reference_records(c, ref_cls) for c in claims]
-                if has_cal_field:
-                    record[cal_field_name] = [
-                        get_snak_calendar_model(c.mainsnak) or DEFAULT_CALENDAR_MODEL for c in claims
-                    ]
             else:
                 if field_type == datatypes.MonolingualText.DTYPE:
                     claim = next(
@@ -539,8 +510,6 @@ def get_model_from_item(item: ItemEntity, model: type[BaseModel]) -> BaseModel:
                     claim = claims[0] if claims else None
                 if claim is not None:
                     field_value = get_snak_value(claim.mainsnak)
-                    if has_cal_field:
-                        record[cal_field_name] = get_snak_calendar_model(claim.mainsnak)
                 if ref_cls is not None:
                     record[sources_field_name] = _extract_reference_records(claim, ref_cls) if claim else []
         if field_value is not None:
@@ -583,9 +552,6 @@ def get_model_from_qualified_statement(claim: Claim, model: type[StatementBase])
         record[subject_field] = WikibaseSnakType.NO_VALUE.value
     else:
         record[subject_field] = get_snak_value(claim.mainsnak)
-        subject_cal_field = calendar_field_name(subject_field)
-        if subject_cal_field in model.model_fields:
-            record[subject_cal_field] = get_snak_calendar_model(claim.mainsnak)
     if issubclass(model, Statement):
         record["statement_id"] = claim.id
     qualifier_fields = model.get_qualifier_fields(WIKIBASE_ID)
@@ -602,9 +568,6 @@ def get_model_from_qualified_statement(claim: Claim, model: type[StatementBase])
             elif _is_list_annotation(field_metadata.annotation):
                 values = [get_snak_value(snak) for snak in qualifier]
                 record[qualifier_field] = values
-                cal_field = calendar_field_name(qualifier_field)
-                if cal_field in model.model_fields:
-                    record[cal_field] = [get_snak_calendar_model(snak) or DEFAULT_CALENDAR_MODEL for snak in qualifier]
             else:
                 if len(qualifier) > 1:
                     logger.debug(
@@ -612,9 +575,6 @@ def get_model_from_qualified_statement(claim: Claim, model: type[StatementBase])
                         f"supports one value"
                     )
                 record[qualifier_field] = get_snak_value(qualifier[0])
-                cal_field = calendar_field_name(qualifier_field)
-                if cal_field in model.model_fields:
-                    record[cal_field] = get_snak_calendar_model(qualifier[0])
     sources = populate_references_from_claim(claim, model)
     if sources is not None:
         record["sources"] = sources
@@ -683,12 +643,10 @@ def create_qualified_statement_from_model(model: StatementBase) -> Claim:
     elif subject_val == WikibaseSnakType.NO_VALUE.value:
         claim = BaseDataType(prop_nr=subject_prop_nr, snaktype=WikibaseSnakType.NO_VALUE)
     else:
-        subject_extra = _get_schema_extra(model.model_fields.get(subject_field))
         claim = get_claim(
             prop_id=subject_prop_nr,
-            datatype=subject_extra.get(WIKIBASE_TYPE),
+            datatype=model.model_fields.get(subject_field).json_schema_extra.get(WIKIBASE_TYPE),
             value=subject_val,
-            calendarmodel=_calendar_model_for(model, subject_field, subject_extra),
         )
     add_qualifier_values_to_statement(claim, model)
     add_references_to_statement(claim, model)
@@ -734,7 +692,6 @@ def _build_reference_block(ref_model: WikibaseReferenceBase) -> WBIReference | N
             prop_id=extra.get(WIKIBASE_ID),
             datatype=extra.get(WIKIBASE_TYPE),
             value=value,
-            calendarmodel=_calendar_model_for(ref_model, ref_field, extra),
         )
         if snak_claim is not None:
             ref_block.add(snak_claim)
@@ -767,9 +724,6 @@ def _extract_reference_records(claim: Claim, ref_cls: type[WikibaseReferenceBase
             if not snaks:
                 continue
             block_record[ref_field] = get_snak_value(snaks[0])
-            cal_field = calendar_field_name(ref_field)
-            if cal_field in ref_cls.model_fields:
-                block_record[cal_field] = get_snak_calendar_model(snaks[0])
         if block_record:
             sources.append(block_record)
     return sources
@@ -794,46 +748,28 @@ def populate_references_from_claim(claim: Claim, model_cls: type[StatementBase])
     return _extract_reference_records(claim, ref_cls)
 
 
-def add_qualifier_values_to_statement(
-    claim: Claim,
-    model: StatementBase,
-    stored_calendars: dict[str, list[tuple[str | None, str | None]]] | None = None,
-):
+def add_qualifier_values_to_statement(claim: Claim, model: StatementBase):
     """
     Add the qualifier values of the given model to the given claim
     :param claim:
     :param model:
-    :param stored_calendars: calendar models of the qualifier snaks this call replaces,
-        keyed by property number — see ``_inherit_calendar_model``
     :return:
     """
     qualifier_fields = model.get_qualifier_fields(WIKIBASE_ID)
     for qualifier_field in qualifier_fields:
         qualifier_metadata: FieldInfo = model.model_fields.get(qualifier_field)
-        extra = _get_schema_extra(qualifier_metadata)
-        qualifier_prop_id = extra.get(WIKIBASE_ID)
-        qualifier_type = extra.get(WIKIBASE_TYPE)
+        qualifier_prop_id = qualifier_metadata.json_schema_extra.get(WIKIBASE_ID)
+        qualifier_type = qualifier_metadata.json_schema_extra.get(WIKIBASE_TYPE)
         qualifier_prop_nr = Wikibase.get_entity_id(qualifier_prop_id)
         qualifiers = []
         if qualifier_prop_nr is None or getattr(model, qualifier_field) is None:
             continue
         elif isinstance(getattr(model, qualifier_field), list):
             qualifier_values = getattr(model, qualifier_field)
-            is_list = True
         else:
             qualifier_values = [getattr(model, qualifier_field)]
-            is_list = False
-        stored = (stored_calendars or {}).get(qualifier_prop_nr, [])
-        for idx, value in enumerate(qualifier_values):
-            explicit_calendar = _explicit_calendar_model(model, qualifier_field, idx if is_list else None)
-            qualifier = get_claim(
-                prop_id=qualifier_prop_nr,
-                datatype=qualifier_type,
-                value=value,
-                calendarmodel=explicit_calendar or normalize_calendar_model(extra.get(CALENDAR_MODEL)),
-            )
-            if qualifier is not None and explicit_calendar is None:
-                _inherit_calendar_model(qualifier, stored, single_valued=not is_list)
+        for value in qualifier_values:
+            qualifier = get_claim(prop_id=qualifier_prop_nr, datatype=qualifier_type, value=value)
             qualifiers.append(qualifier)
         for snak in qualifiers:
             if snak is not None:
@@ -916,10 +852,9 @@ def update_qualified_statement_from_model(item: ItemEntity, statement_id: str, m
     statement_object_field = model.get_statement_subject(WIKIBASE_ID)
     statement_object_value = getattr(model, statement_object_field)
     statement_metadata = model.model_fields.get(statement_object_field)
-    statement_extra = _get_schema_extra(statement_metadata)
-    statement_prop_id = statement_extra.get(WIKIBASE_ID)
+    statement_prop_id = statement_metadata.json_schema_extra.get(WIKIBASE_ID)
     statement_prop_nr = Wikibase.get_entity_id(statement_prop_id)
-    statement_type = statement_extra.get(WIKIBASE_TYPE)
+    statement_type = statement_metadata.json_schema_extra.get(WIKIBASE_TYPE)
     if statement_object_value is not None:
         if (
             issubclass(model.__class__, ExtractedStatement)
@@ -932,33 +867,25 @@ def update_qualified_statement_from_model(item: ItemEntity, statement_id: str, m
         ):
             new_mainsnak = BaseDataType(prop_nr=statement_prop_nr, snaktype=WikibaseSnakType.NO_VALUE)
         else:
-            explicit_calendar = _explicit_calendar_model(model, statement_object_field)
-            stored = _stored_calendar_models([claim.mainsnak])
             new_mainsnak = get_claim(
                 prop_id=statement_prop_id,
                 datatype=statement_type,
                 value=statement_object_value,
-                calendarmodel=explicit_calendar or normalize_calendar_model(statement_extra.get(CALENDAR_MODEL)),
             )
-            if explicit_calendar is None:
-                _inherit_calendar_model(new_mainsnak, stored, single_valued=True)
         claim.mainsnak = new_mainsnak.mainsnak
     qualifier_fields = model.get_qualifier_fields(WIKIBASE_ID)
-    stored_qualifier_calendars: dict[str, list[tuple[str | None, str | None]]] = {}
     for model_field in model.model_fields_set:
         if model_field not in qualifier_fields:
             continue
         qualifier_metadata = model.model_fields.get(model_field)
-        qualifier_prop_id = _get_schema_extra(qualifier_metadata).get(WIKIBASE_ID)
+        qualifier_prop_id = qualifier_metadata.json_schema_extra.get(WIKIBASE_ID)
         qualifier_prop_nr = Wikibase.get_entity_id(qualifier_prop_id)
-        existing_snaks = list(claim.qualifiers.get(qualifier_prop_nr))
-        stored_qualifier_calendars[qualifier_prop_nr] = _stored_calendar_models(existing_snaks)
         # remove existing values (iterate a copy: Qualifiers.remove mutates the
         # internal list returned by .get(), same WBI bug worked around in
         # _remove_property_claims above)
-        for qualifier_snak in existing_snaks:
+        for qualifier_snak in list(claim.qualifiers.get(qualifier_prop_nr)):
             claim.qualifiers.remove(qualifier_snak)
-    add_qualifier_values_to_statement(claim, model, stored_qualifier_calendars)
+    add_qualifier_values_to_statement(claim, model)
     if "sources" in model.model_fields_set:
         # Reference blocks are replaced wholesale: clear and re-add from model.sources.
         claim.references.clear()

@@ -41,15 +41,6 @@ app = FastAPI()
 
 _STATIC_DIR = Path(__file__).parent / "static"
 app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
-# Use a deployment-specific URL for the SPA assets.  This prevents browsers that
-# previously reached another server for the same hostname from reusing its cached
-# JavaScript after a DNS cut-over.  Keep /static for existing image URLs and API
-# clients, while the HTML shell loads all executable assets from this namespace.
-app.mount(
-    "/static-sxrm-20260907",
-    StaticFiles(directory=str(_STATIC_DIR)),
-    name="static-sxrm-20260907",
-)
 
 for router in get_routers():
     app.include_router(router)

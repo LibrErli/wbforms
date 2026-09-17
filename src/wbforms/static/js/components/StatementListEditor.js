@@ -134,16 +134,8 @@ export default {
       const block = {};
       (props.field.reference_fields || []).forEach((rf) => {
         block[rf.name] = rf.field_type === "list" ? [] : "";
-        if (rf.calendar_field) {
-          block[rf.calendar_field] = rf.field_type === "list" ? [] : "";
-        }
       });
       return block;
-    }
-
-    function setStmtCalendar(f, value) {
-      if (!f.calendar_field) return;
-      formData[f.calendar_field] = value;
     }
 
     function cloneSources(srcArr) {
@@ -416,7 +408,6 @@ export default {
       enforceUnknownStmtName,
       effectiveSources,
       isEditingRow,
-      setStmtCalendar,
       t,
     };
   },
@@ -459,26 +450,20 @@ export default {
                     </div>
                     <div v-if="snakType === 'value'" class="field-row">
                       <label>{{ f.label }}<span class="field-required">*</span></label>
-                      <field-input :field="f" v-model="formData[f.name]"
-                                   :calendar="f.calendar_field ? formData[f.calendar_field] : null"
-                                   @update:calendar="setStmtCalendar(f, $event)" />
+                      <field-input :field="f" v-model="formData[f.name]" />
                     </div>
                   </template>
                   <template v-else-if="f.is_object_named_as && enforceUnknownStmtName">
                     <div v-if="snakType === 'unknown_value'" class="field-row">
                       <label>{{ f.label }}<span class="field-required">*</span></label>
-                      <field-input :field="f" v-model="formData[f.name]"
-                                   :calendar="f.calendar_field ? formData[f.calendar_field] : null"
-                                   @update:calendar="setStmtCalendar(f, $event)" />
+                      <field-input :field="f" v-model="formData[f.name]" />
                     </div>
                   </template>
                   <div v-else class="field-row">
                     <label>
                       {{ f.label }}<span v-if="f.required" class="field-required">*</span>
                     </label>
-                    <field-input :field="f" v-model="formData[f.name]"
-                                 :calendar="f.calendar_field ? formData[f.calendar_field] : null"
-                                 @update:calendar="setStmtCalendar(f, $event)" />
+                    <field-input :field="f" v-model="formData[f.name]" />
                   </div>
                 </template>
                 <div v-if="field.supports_references" class="inline-editor-sources">
@@ -555,26 +540,20 @@ export default {
                       </div>
                       <div v-if="snakType === 'value'" class="field-row">
                         <label>{{ f.label }}<span class="field-required">*</span></label>
-                        <field-input :field="f" v-model="formData[f.name]"
-                                     :calendar="f.calendar_field ? formData[f.calendar_field] : null"
-                                     @update:calendar="setStmtCalendar(f, $event)" />
+                        <field-input :field="f" v-model="formData[f.name]" />
                       </div>
                     </template>
                     <template v-else-if="f.is_object_named_as && enforceUnknownStmtName">
                       <div v-if="snakType === 'unknown_value'" class="field-row">
                         <label>{{ f.label }}<span class="field-required">*</span></label>
-                        <field-input :field="f" v-model="formData[f.name]"
-                                     :calendar="f.calendar_field ? formData[f.calendar_field] : null"
-                                     @update:calendar="setStmtCalendar(f, $event)" />
+                        <field-input :field="f" v-model="formData[f.name]" />
                       </div>
                     </template>
                     <div v-else class="field-row">
                       <label>
                         {{ f.label }}<span v-if="f.required" class="field-required">*</span>
                       </label>
-                      <field-input :field="f" v-model="formData[f.name]"
-                                   :calendar="f.calendar_field ? formData[f.calendar_field] : null"
-                                   @update:calendar="setStmtCalendar(f, $event)" />
+                      <field-input :field="f" v-model="formData[f.name]" />
                     </div>
                   </template>
                   <div v-if="field.supports_references" class="inline-editor-sources">
@@ -632,26 +611,20 @@ export default {
                       </div>
                       <div v-if="snakType === 'value'" class="field-row">
                         <label>{{ f.label }}<span class="field-required">*</span></label>
-                        <field-input :field="f" v-model="formData[f.name]"
-                                     :calendar="f.calendar_field ? formData[f.calendar_field] : null"
-                                     @update:calendar="setStmtCalendar(f, $event)" />
+                        <field-input :field="f" v-model="formData[f.name]" />
                       </div>
                     </template>
                     <template v-else-if="f.is_object_named_as && enforceUnknownStmtName">
                       <div v-if="snakType === 'unknown_value'" class="field-row">
                         <label>{{ f.label }}<span class="field-required">*</span></label>
-                        <field-input :field="f" v-model="formData[f.name]"
-                                     :calendar="f.calendar_field ? formData[f.calendar_field] : null"
-                                     @update:calendar="setStmtCalendar(f, $event)" />
+                        <field-input :field="f" v-model="formData[f.name]" />
                       </div>
                     </template>
                     <div v-else class="field-row">
                       <label>
                         {{ f.label }}<span v-if="f.required" class="field-required">*</span>
                       </label>
-                      <field-input :field="f" v-model="formData[f.name]"
-                                   :calendar="f.calendar_field ? formData[f.calendar_field] : null"
-                                   @update:calendar="setStmtCalendar(f, $event)" />
+                      <field-input :field="f" v-model="formData[f.name]" />
                     </div>
                   </template>
                   <div v-if="field.supports_references" class="inline-editor-sources">

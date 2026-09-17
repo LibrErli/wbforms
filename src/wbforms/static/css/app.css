@@ -272,13 +272,6 @@ label {
   align-items: center;
 }
 .datetime-input-row > input { flex: 1; min-width: 0; }
-/* Calendar-model selector: sized to its content so the date input keeps the space. */
-.datetime-calendar {
-  flex: 0 0 auto;
-  width: auto;
-  margin: 0;
-  font-size: 0.85rem;
-}
 .datetime-hint {
   color: var(--muted-color);
   font-size: 0.78rem;
@@ -580,11 +573,6 @@ label {
 }
 .login-card .login-lang select {
   width: auto;
-}
-
-.login-divider {
-  margin: 1rem 0;
-  text-align: center;
 }
 
 /* ----- Diff table inside CommitDialog -------------------------------------- */
