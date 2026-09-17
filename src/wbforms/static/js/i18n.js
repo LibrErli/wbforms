@@ -106,6 +106,12 @@ const messages = {
     datetime_invalid_format:
       "Value does not match the expected Wikibase time format.",
 
+    calendar_label: "Calendar model",
+    calendar_gregorian: "Gregorian",
+    calendar_julian: "Julian",
+    calendar_non_default_warning:
+      "This date uses a calendar other than this field's default. It is kept as stored unless you change it here.",
+
     search_placeholder: "Search by label or enter QID…",
     search_change: "Change",
     search_cancel: "Cancel",
@@ -202,6 +208,12 @@ const messages = {
       "Format: +JJJJ-MM-TTTHH:MM:SSZ — 00 für unbekannte Teile verwenden (z. B. +2020-00-00T00:00:00Z für Jahresgenauigkeit).",
     datetime_invalid_format:
       "Wert entspricht nicht dem erwarteten Wikibase-Zeitformat.",
+
+    calendar_label: "Kalendermodell",
+    calendar_gregorian: "Gregorianisch",
+    calendar_julian: "Julianisch",
+    calendar_non_default_warning:
+      "Dieses Datum verwendet einen anderen als den Standardkalender dieses Feldes. Es bleibt unverändert gespeichert, sofern Sie es hier nicht ändern.",
 
     search_placeholder: "Nach Label suchen oder QID eingeben…",
     search_change: "Ändern",

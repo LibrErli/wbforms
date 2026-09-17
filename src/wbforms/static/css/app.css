@@ -272,6 +272,13 @@ label {
   align-items: center;
 }
 .datetime-input-row > input { flex: 1; min-width: 0; }
+/* Calendar-model selector: sized to its content so the date input keeps the space. */
+.datetime-calendar {
+  flex: 0 0 auto;
+  width: auto;
+  margin: 0;
+  font-size: 0.85rem;
+}
 .datetime-hint {
   color: var(--muted-color);
   font-size: 0.78rem;

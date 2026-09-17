@@ -11,8 +11,10 @@ export default {
     modelValue: { default: null },
     // Single-valued field: list[block]. Multivalued field: list[list[block]] (positional with modelValue).
     sources: { default: null },
+    // Time fields only. Single-valued: a calendar model IRI. Multivalued: a positional list of them.
+    calendar: { default: null },
   },
-  emits: ["update:modelValue", "update:sources"],
+  emits: ["update:modelValue", "update:sources", "update:calendar"],
   setup(props, { emit }) {
     const { computed } = Vue;
     const { t } = useI18n();
@@ -58,6 +60,11 @@ export default {
         next.push([]);
         emit("update:sources", next);
       }
+      if (isTime.value) {
+        const next = Array.isArray(props.calendar) ? [...props.calendar] : [];
+        next.push(defaultCalendar.value);
+        emit("update:calendar", next);
+      }
     }
 
     function removeListItem(idx) {
@@ -68,6 +75,33 @@ export default {
         next.splice(idx, 1);
         emit("update:sources", next);
       }
+      if (isTime.value) {
+        const next = Array.isArray(props.calendar) ? [...props.calendar] : [];
+        next.splice(idx, 1);
+        emit("update:calendar", next);
+      }
+    }
+
+    const calendarOptions = computed(() => props.field.calendar_options || []);
+    const defaultCalendar = computed(
+      () => props.field.default_calendar_model || "",
+    );
+
+    const singleCalendar = computed(() =>
+      typeof props.calendar === "string" ? props.calendar : "",
+    );
+
+    function calendarForIndex(idx) {
+      return Array.isArray(props.calendar) ? (props.calendar[idx] ?? "") : "";
+    }
+
+    function updateCalendarForIndex(idx, value) {
+      const next = Array.isArray(props.calendar) ? [...props.calendar] : [];
+      // The calendar list is positional with modelValue, so pad any gap left by
+      // values added before a calendar was ever chosen.
+      while (next.length <= idx) next.push(defaultCalendar.value);
+      next[idx] = value;
+      emit("update:calendar", next);
     }
 
     function sourcesForIndex(idx) {
@@ -100,6 +134,11 @@ export default {
       listVal,
       supportsRefs,
       singleSources,
+      calendarOptions,
+      defaultCalendar,
+      singleCalendar,
+      calendarForIndex,
+      updateCalendarForIndex,
       updateList,
       addListItem,
       removeListItem,
@@ -123,7 +162,11 @@ export default {
             <date-time-input
               v-else-if="isTime"
               :model-value="val || ''"
+              :calendar="calendarForIndex(idx)"
+              :default-calendar="defaultCalendar"
+              :calendar-options="calendarOptions"
               @update:model-value="updateList(idx, $event)"
+              @update:calendar="updateCalendarForIndex(idx, $event)"
             />
             <input
               v-else
@@ -156,7 +199,11 @@ export default {
         <date-time-input
           v-else-if="isTime"
           :model-value="modelValue || ''"
+          :calendar="singleCalendar"
+          :default-calendar="defaultCalendar"
+          :calendar-options="calendarOptions"
           @update:model-value="$emit('update:modelValue', $event)"
+          @update:calendar="$emit('update:calendar', $event)"
         />
         <input
           v-else

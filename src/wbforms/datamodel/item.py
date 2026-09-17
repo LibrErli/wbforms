@@ -8,6 +8,16 @@ from wikibaseintegrator.wbi_enums import WikibaseSnakType
 WIKIBASE_TYPE = "wikibase_type"
 WIKIBASE_ID = "WIKIBASE_ID"
 WIKIDATA_ID = "WIKIDATA_ID"
+#: Default calendar model IRI for a `time` field, resolved from the LinkML schema.
+CALENDAR_MODEL = "CALENDAR_MODEL"
+
+#: Suffix of the sibling field carrying the per-value calendar model of a `time` field.
+CALENDAR_FIELD_SUFFIX = "_calendar"
+
+
+def calendar_field_name(field_name: str) -> str:
+    """Name of the sibling field holding the calendar model of a `time` field."""
+    return f"{field_name}{CALENDAR_FIELD_SUFFIX}"
 
 
 class _EmptyStringsMixin(BaseModel):

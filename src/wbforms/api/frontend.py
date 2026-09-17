@@ -10,11 +10,21 @@ import yaml
 from fastapi import APIRouter, Query
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
+from wikibaseintegrator import datatypes
 
 from wbforms.codegen import get_models
 from wbforms.codegen.endpoints import derive_endpoints
-from wbforms.datamodel.item import WIKIBASE_ID, WIKIBASE_TYPE, StatementBase, WikibaseReferenceBase
+from wbforms.datamodel.item import (
+    CALENDAR_FIELD_SUFFIX,
+    CALENDAR_MODEL,
+    WIKIBASE_ID,
+    WIKIBASE_TYPE,
+    StatementBase,
+    WikibaseReferenceBase,
+    calendar_field_name,
+)
 from wbforms.settings import get_settings
+from wbforms.wb_calendar import DEFAULT_CALENDAR_MODEL, calendar_model_options
 from wbforms.wbgenerator import _is_list_annotation, _wikibase_reference_class, get_statement_field_type
 
 _STATIC_DIR = Path(__file__).parent.parent / "static"
@@ -56,7 +66,7 @@ def _get_localized_label(slot_name: str, language: str = "de") -> str:
     Label aus dem Slot-Namen erstellt.
     """
     schema = _get_schema()
-    
+
     # Suche nach dem Slot in den Slots des Schemas
     slots = schema.get("slots", {})
     if slot_name in slots:
@@ -75,7 +85,7 @@ def _get_localized_label(slot_name: str, language: str = "de") -> str:
             for lang_data in local_names.values():
                 if isinstance(lang_data, dict) and "local_name_value" in lang_data:
                     return lang_data["local_name_value"]
-    
+
     # Fallback: generisches Label aus dem Slot-Namen
     return _label(slot_name)
 
@@ -92,6 +102,9 @@ def _build_statement_fields(stmt_cls: type[StatementBase], language: str = "en")
     for fname, finfo in stmt_cls.model_fields.items():
         if fname in _SKIP_FIELDS:
             continue
+        # `<X>_calendar` companions are rendered alongside their base field, not as separate inputs.
+        if fname.endswith(CALENDAR_FIELD_SUFFIX):
+            continue
         extra = finfo.json_schema_extra if isinstance(finfo.json_schema_extra, dict) else {}
         wb_id = extra.get(WIKIBASE_ID, "")
         if wb_id in _INTERNAL_WB_IDS:
@@ -103,6 +116,7 @@ def _build_statement_fields(stmt_cls: type[StatementBase], language: str = "en")
             "field_type": "list" if _is_list_annotation(finfo.annotation) else "single",
             "required": finfo.is_required(),
         }
+        _add_calendar_metadata(entry, stmt_cls, fname, finfo)
         if fname == subject_field_name:
             entry["is_subject"] = True
         if fname == "object_named_as":
@@ -177,8 +191,9 @@ def _build_entity_schema(
     for fname, finfo in model_cls.model_fields.items():
         if fname in _SKIP_FIELDS or fname in {"label", "description"}:
             continue
-        # `<X>_sources` companions are rendered alongside their base field, not as separate inputs.
-        if fname.endswith("_sources"):
+        # `<X>_sources` / `<X>_calendar` companions are rendered alongside their base
+        # field, not as separate inputs.
+        if fname.endswith("_sources") or fname.endswith(CALENDAR_FIELD_SUFFIX):
             continue
 
         extra = finfo.json_schema_extra if isinstance(finfo.json_schema_extra, dict) else {}
@@ -229,6 +244,7 @@ def _build_entity_schema(
             "wikibase_type": _wikibase_type(finfo),
             "required": finfo.is_required(),
         }
+        _add_calendar_metadata(descriptor, model_cls, fname, finfo)
         sources_field = model_cls.model_fields.get(f"{fname}_sources")
         if sources_field is not None:
             ref_cls = _wikibase_reference_class(sources_field)
