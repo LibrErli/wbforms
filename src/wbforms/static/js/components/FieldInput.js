@@ -14,9 +14,21 @@ export default {
   },
   emits: ["update:modelValue", "update:sources"],
   setup(props, { emit }) {
-    const { computed } = Vue;
+    const { computed, watch, onMounted } = Vue;
     const { t } = useI18n();
 
+    // Log field props to check for default_value (especially for instance_of and station_id)
+    if (props.field.name === "instance_of" || props.field.name === "station_id") {
+      console.log("FieldInput setup - field:", props.field.name, "modelValue:", props.modelValue);
+    }
+    
+    onMounted(() => {
+      // Log when the component is mounted to verify it has the correct value
+      if (props.field.name === "station_id") {
+        console.log("FieldInput mounted - station_id, modelValue:", props.modelValue);
+      }
+    });
+    
     const isItem = computed(
       () => props.field.wikibase_type === "wikibase-item",
     );

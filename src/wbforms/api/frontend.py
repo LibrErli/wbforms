@@ -103,6 +103,12 @@ def _build_statement_fields(stmt_cls: type[StatementBase], language: str = "en")
             "field_type": "list" if _is_list_annotation(finfo.annotation) else "single",
             "required": finfo.is_required(),
         }
+        # Include default_value from json_schema_extra
+        if "default_value" in extra:
+            entry["default_value"] = extra["default_value"]
+        # Include the full json_schema_extra as annotations for debugging and future use
+        if extra:
+            entry["annotations"] = extra
         if fname == subject_field_name:
             entry["is_subject"] = True
         if fname == "object_named_as":
@@ -127,15 +133,21 @@ def _build_reference_fields(ref_cls: type[WikibaseReferenceBase], language: str 
     fields = []
     for fname in ref_cls.get_reference_fields(WIKIBASE_ID):
         finfo = ref_cls.model_fields[fname]
-        fields.append(
-            {
-                "name": fname,
-                "label": _get_localized_label(fname, language),
-                "wikibase_type": _wikibase_type(finfo),
-                "field_type": "list" if _is_list_annotation(finfo.annotation) else "single",
-                "required": finfo.is_required(),
-            }
-        )
+        extra = finfo.json_schema_extra if isinstance(finfo.json_schema_extra, dict) else {}
+        field_desc = {
+            "name": fname,
+            "label": _get_localized_label(fname, language),
+            "wikibase_type": _wikibase_type(finfo),
+            "field_type": "list" if _is_list_annotation(finfo.annotation) else "single",
+            "required": finfo.is_required(),
+        }
+        # Include default_value from json_schema_extra
+        if "default_value" in extra:
+            field_desc["default_value"] = extra["default_value"]
+        # Include the full json_schema_extra as annotations for debugging and future use
+        if extra:
+            field_desc["annotations"] = extra
+        fields.append(field_desc)
     return fields
 
 
@@ -163,6 +175,7 @@ def _build_entity_schema(
         else:
             label_value = _label(meta_name)
         
+        extra = finfo.json_schema_extra if isinstance(finfo.json_schema_extra, dict) else {}
         term_field: dict = {
             "name": meta_name,
             "label": label_value,
@@ -172,6 +185,12 @@ def _build_entity_schema(
         }
         if finfo.description:
             term_field["description"] = finfo.description
+        # Include default_value from json_schema_extra
+        if "default_value" in extra:
+            term_field["default_value"] = extra["default_value"]
+        # Include the full json_schema_extra as annotations for debugging and future use
+        if extra:
+            term_field["annotations"] = extra
         fields.append(term_field)
 
     for fname, finfo in model_cls.model_fields.items():
@@ -229,6 +248,12 @@ def _build_entity_schema(
             "wikibase_type": _wikibase_type(finfo),
             "required": finfo.is_required(),
         }
+        # Include default_value from json_schema_extra
+        if "default_value" in extra:
+            descriptor["default_value"] = extra["default_value"]
+        # Include the full json_schema_extra as annotations for debugging and future use
+        if extra:
+            descriptor["annotations"] = extra
         sources_field = model_cls.model_fields.get(f"{fname}_sources")
         if sources_field is not None:
             ref_cls = _wikibase_reference_class(sources_field)
