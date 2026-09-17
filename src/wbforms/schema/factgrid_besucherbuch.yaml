@@ -481,13 +481,21 @@ classes:
           supports_references: true
       person_group:
         annotations:
-          supports_references: true          
+          supports_references: true 
+      instance_of:
+        annotations:
+          default_value: Q7
+
   FamilyName:
     annotations:
       python_base: entity_item
     slots:
       - instance_of
       - description
+    slot_usage:
+      instance_of:
+        annotations:
+          default_value: Q24499
 
   StayIn:
     annotations:
@@ -499,6 +507,10 @@ classes:
       - station_id
       - begin_date
       - end_date
+    slot_usage:
+      station_id:
+        annotations:
+          default_value: Q1872083
 
   PersonGroup:
     annotations:
@@ -520,3 +532,7 @@ classes:
       - ref_online_digistation
       - ref_wikisource_page
       - ref_literal_statement
+    slot_usage:
+      ref_primary_source:
+        annotations:
+          default_value: Q1871961

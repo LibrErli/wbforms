@@ -73,9 +73,23 @@ const App = {
     async function loadSchema() {
       if (!isLoggedIn.value) return;
       try {
-        state.schema = await apiFetch(
-          `/api/schema/entities?language=${locale.value}`,
-        );
+        state.schema = await apiFetch(`/api/schema/entities?language=${locale.value}`);
+        console.log("Schema loaded:", state.schema);
+        // Check for FamilyName entity and its instance_of field
+        const familyNameEntity = state.schema?.find(e => e.name === "FamilyName");
+        if (familyNameEntity) {
+          console.log("FamilyName entity:", familyNameEntity);
+          const instanceOfField = familyNameEntity.fields?.find(f => f.name === "instance_of");
+          if (instanceOfField) {
+            console.log("instance_of field in FamilyName:", instanceOfField);
+            console.log("instance_of default_value:", instanceOfField.default_value);
+            console.log("instance_of annotations:", instanceOfField.annotations);
+          } else {
+            console.log("instance_of field not found in FamilyName fields");
+          }
+        } else {
+          console.log("FamilyName entity not found in schema");
+        }
       } catch (e) {
         state.schemaError = e.message;
       }
@@ -131,8 +145,8 @@ const App = {
        <a href="https://www.saxorum.de/impressum" class="link-btn" style="text-decoration:none; font-size: 0.65rem;">{{ t('footer_impressum') }}</a>
       </div>
       <div>
-	<a href="https://km-a.net"><img src="/static/images/knowledgewiki.svg" alt="Logo" style="height: 40px; margin-right: 1rem; vertical-align: middle;"></a>
-	<a href="https://github.com/FactGrid/wbforms" style="color: #333; text-decoration: none;" aria-label="GitHub" title="derrived from FactGrid/wbforms">
+        <a href="https://km-a.net"><img src="/static/images/knowledgewiki.svg" alt="Logo" style="height: 40px; margin-right: 1rem; vertical-align: middle;"></a>    
+        <a href="https://github.com/FactGrid/wbforms" style="color: #333; text-decoration: none;" aria-label="GitHub" title="derrived from FactGrid/wbforms">
           <img src="/static/images/github.png" style="height: 30px;"/>
         </a>
       </div>

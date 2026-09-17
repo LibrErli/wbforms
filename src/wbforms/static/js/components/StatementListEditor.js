@@ -177,24 +177,34 @@ export default {
       });
     }
 
-    function openNewInline() {
+    async function openNewInline() {
       // Populate form state BEFORE flipping editingKey: editingKey drives the v-if that mounts the
       // editor (and its ItemSearchInput children), which read formData at creation time.
       Object.keys(formData).forEach((k) => {
         delete formData[k];
       });
       props.field.statement_fields.forEach((f) => {
-        formData[f.name] = f.field_type === "list" ? [] : "";
-        if (f.calendar_field) {
-          formData[f.calendar_field] = f.field_type === "list" ? [] : "";
-        }
+        // Use default_value if available, otherwise use empty string or list
+        const defaultVal = f.default_value !== undefined ? f.default_value : (f.field_type === "list" ? [] : "");
+        console.log(`StatementListEditor.openNewInline - Setting field ${f.name} to default:`, defaultVal, "(from default_value:", f.default_value, ")");
+        formData[f.name] = defaultVal;
       });
       formData.sources = [];
       snakType.value = "unknown_value";
-      if (subjectField.value) formData[subjectField.value.name] = "somevalue";
+      if (subjectField.value && !subjectField.value.default_value) {
+        formData[subjectField.value.name] = "somevalue";
+      }
       editorError.value = "";
       editingRow.value = null;
+      
+      console.log(`StatementListEditor.openNewInline - formData before nextTick:`, {...formData});
+      
+      // Wait for next tick to ensure formData is fully updated before mounting the editor
+      await nextTick();
+      console.log(`StatementListEditor.openNewInline - formData after first nextTick:`, {...formData});
       editingKey.value = "new";
+      await nextTick();
+      console.log(`StatementListEditor.openNewInline - formData after second nextTick, editingKey is now:`, editingKey.value);
       focusFirstInput();
     }
 
@@ -204,7 +214,7 @@ export default {
       return null;
     }
 
-    function openEditInline(row) {
+    async function openEditInline(row) {
       const src =
         row._id !== undefined
           ? row.data
@@ -221,11 +231,11 @@ export default {
         delete formData[k];
       });
       props.field.statement_fields.forEach((f) => {
-        formData[f.name] = src[f.name] ?? (f.field_type === "list" ? [] : "");
-        if (f.calendar_field) {
-          formData[f.calendar_field] =
-            src[f.calendar_field] ?? (f.field_type === "list" ? [] : "");
-        }
+        // Use data value if present, otherwise use default_value if available, otherwise use empty
+        const dataVal = src[f.name];
+        const defaultVal = f.default_value !== undefined ? f.default_value : (f.field_type === "list" ? [] : "");
+        console.log(`StatementListEditor.openEditInline - field ${f.name}: data value =`, dataVal, `default_value =`, f.default_value, `using =`, dataVal ?? defaultVal);
+        formData[f.name] = dataVal ?? defaultVal;
       });
       formData.sources = cloneSources(src.sources);
       if (subjectField.value && enforceUnknownStmtName.value) {
@@ -233,7 +243,15 @@ export default {
       }
       editorError.value = "";
       editingRow.value = nextRow;
+      
+      console.log(`StatementListEditor.openEditInline - formData before nextTick:`, {...formData});
+      
+      // Wait for next tick to ensure formData is fully updated before mounting the editor
+      await nextTick();
+      console.log(`StatementListEditor.openEditInline - formData after first nextTick:`, {...formData});
       editingKey.value = rowKey(nextRow) ?? rowKey(row);
+      await nextTick();
+      console.log(`StatementListEditor.openEditInline - formData after second nextTick, editingKey is now:`, editingKey.value);
       focusFirstInput();
     }
 

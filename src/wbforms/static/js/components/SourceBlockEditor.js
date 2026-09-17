@@ -17,16 +17,19 @@ export default {
     function emptyBlock() {
       const block = {};
       (props.referenceFields || []).forEach((rf) => {
-        block[rf.name] = rf.field_type === "list" ? [] : "";
-        if (rf.calendar_field) {
-          block[rf.calendar_field] = rf.field_type === "list" ? [] : "";
-        }
+        // Use default_value if available, otherwise use empty string or list
+        const defaultVal = rf.default_value !== undefined ? rf.default_value : (rf.field_type === "list" ? [] : "");
+        console.log(`SourceBlockEditor.emptyBlock - Setting field ${rf.name} to default:`, defaultVal, "(from default_value:", rf.default_value, ")");
+        block[rf.name] = defaultVal;
       });
+      console.log(`SourceBlockEditor.emptyBlock - returning block:`, block);
       return block;
     }
 
     function addBlock() {
-      emit("update:modelValue", [...(props.modelValue || []), emptyBlock()]);
+      const newBlock = emptyBlock();
+      console.log(`SourceBlockEditor.addBlock - adding block:`, newBlock);
+      emit("update:modelValue", [...(props.modelValue || []), newBlock]);
     }
 
     function removeBlock(idx) {

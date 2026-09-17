@@ -78,6 +78,9 @@ def _ann_dict(annotations) -> dict[str, str]:
         else:
             pairs = [(k, annotations[k]) for k in annotations]
         for k, v in pairs:
+            # Skip callable values (like _if_missing function from JsonObj)
+            if callable(v):
+                continue
             result[str(k)] = v.value if hasattr(v, "value") else str(v)
     except Exception:
         pass
@@ -166,28 +169,38 @@ def _build_field_def(
         extra[WIKIDATA_ID] = wd_id
     if wb_type := anns.get("wikibase_type"):
         extra[WIKIBASE_TYPE] = WIKIBASE_DTYPE_MAP.get(wb_type, wb_type)
-    if _is_time_slot(anns):
-        # Slot annotation wins over the schema-root default; both may be a bare QID.
-        calendar_model = normalize_calendar_model(anns.get(CALENDAR_MODEL_ANNOTATION) or schema_calendar_model or None)
-        if calendar_model:
-            extra[CALENDAR_MODEL] = calendar_model
+    # Include all other annotations as-is (e.g., default_value)
+    for key, value in anns.items():
+        if key not in ("wikibase_id", "wikidata_id", "wikibase_type"):
+            # Skip callable values (like _if_missing function from JsonObj)
+            if not callable(value):
+                extra[key] = value
 
     field_kwargs: dict[str, Any] = {}
     if extra:
         field_kwargs["json_schema_extra"] = extra
+    
+    # Use default_value as actual Field default when present (for optional fields)
+    if default_val := anns.get("default_value"):
+        field_kwargs["default"] = default_val
     if slot.pattern:
         field_kwargs["pattern"] = slot.pattern
 
     if is_stmt_subject:
         default: Any = WikibaseSnakType.UNKNOWN_VALUE.value
-        return py_type, Field(default=default, **field_kwargs)
+        field_kwargs["default"] = default
+        return py_type, Field(**field_kwargs)
     elif is_required:
-        return py_type, Field(default=..., **field_kwargs)
+        field_kwargs["default"] = ...
+        return py_type, Field(**field_kwargs)
     elif get_origin(py_type) is list:
         # Multivalued optional: keep as list[T] with empty-list default (not list[T] | None)
         return py_type, Field(default_factory=list, **field_kwargs)
     else:
-        return py_type | None, Field(default=None, **field_kwargs)
+        # Only set default=None if no default was set from annotations
+        if "default" not in field_kwargs:
+            field_kwargs["default"] = None
+        return py_type | None, Field(**field_kwargs)
 
 
 def _build_term_field_def(slot_name: str, induced, anns: dict[str, str], class_name: str) -> tuple[Any, Any]:

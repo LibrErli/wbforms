@@ -66,6 +66,20 @@ export default {
       () =>
         entities.value.find((e) => e.name === selectedEntityName.value) ?? null,
     );
+    
+    // Log when entity changes to check for default_value
+    watch(selectedEntity, (newVal) => {
+      if (newVal) {
+        console.log("Selected entity:", newVal.name);
+        console.log("Entity fields:", newVal.fields);
+        const instanceOfField = newVal.fields?.find(f => f.name === "instance_of");
+        if (instanceOfField) {
+          console.log("instance_of field:", instanceOfField);
+          console.log("instance_of default_value:", instanceOfField.default_value);
+          console.log("instance_of annotations:", instanceOfField.annotations);
+        }
+      }
+    });
     const simpleFields = computed(() =>
       (selectedEntity.value?.fields ?? []).filter(
         (f) => f.field_type !== "statement_list",
@@ -121,9 +135,13 @@ export default {
       });
       clearSignal.value++;
       if (selectedEntity.value) {
+        console.log("resetForm - initializing fields with default values");
         selectedEntity.value.fields.forEach((f) => {
           if (f.field_type === "statement_list") return;
-          pendingData[f.name] = f.field_type === "list" ? [] : "";
+          // Use default_value if available, otherwise use empty string or list
+          const defaultVal = f.default_value !== undefined ? f.default_value : (f.field_type === "list" ? [] : "");
+          console.log(`Setting field ${f.name} to default:`, defaultVal, "(from default_value:", f.default_value, ")");
+          pendingData[f.name] = defaultVal;
           if (f.supports_references) {
             pendingData[`${f.name}_sources`] = [];
           }
@@ -163,8 +181,11 @@ export default {
       if (!data) return;
       (selectedEntity.value?.fields ?? []).forEach((f) => {
         if (f.field_type === "statement_list") return;
-        pendingData[f.name] =
-          data[f.name] ?? (f.field_type === "list" ? [] : "");
+        // Use data value if present, otherwise use default_value if available, otherwise use empty
+        const dataVal = data[f.name];
+        const defaultVal = f.default_value !== undefined ? f.default_value : (f.field_type === "list" ? [] : "");
+        console.log(`applyEntity - field ${f.name}: data value =`, dataVal, `default_value =`, f.default_value, `using =`, dataVal ?? defaultVal);
+        pendingData[f.name] = dataVal ?? defaultVal;
         if (f.supports_references) {
           pendingData[`${f.name}_sources`] = data[`${f.name}_sources`] ?? [];
         }
