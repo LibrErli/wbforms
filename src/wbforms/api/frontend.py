@@ -5,8 +5,8 @@ from typing import get_args
 import html
 import re
 
-import yaml
 import httpx
+import yaml
 from fastapi import APIRouter, Query
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
@@ -271,6 +271,12 @@ def get_public_config() -> dict:
     s = get_settings()
     return {
         "oauth_version": s.oauth_version,
+        "oauth_configured": bool(
+            s.oauth_client_id
+            and s.oauth_client_secret
+            and s.oauth_client_secret.get_secret_value()
+            and s.oauth_redirect_uri
+        ),
         "wikibase_website": s.wikibase_website.unicode_string(),
     }
 
@@ -381,9 +387,21 @@ async def entity_label(qid: str = Query(...), language: str = "de") -> dict:
 
 @router.get("/")
 def serve_index() -> FileResponse:
-    return FileResponse(_STATIC_DIR / "index.html")
+    return _index_response()
 
 
 @router.get("/form/{path:path}")
 def serve_form(path: str) -> FileResponse:
-    return FileResponse(_STATIC_DIR / "index.html")
+    return _index_response()
+
+
+def _index_response() -> FileResponse:
+    """Serve the SPA shell without allowing stale cross-deployment caching."""
+    return FileResponse(
+        _STATIC_DIR / "index.html",
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+            "Pragma": "no-cache",
+            "Expires": "0",
+        },
+    )

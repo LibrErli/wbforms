@@ -575,6 +575,11 @@ label {
   width: auto;
 }
 
+.login-divider {
+  margin: 1rem 0;
+  text-align: center;
+}
+
 /* ----- Diff table inside CommitDialog -------------------------------------- */
 
 dialog article { max-width: 760px; }

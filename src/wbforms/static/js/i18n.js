@@ -21,15 +21,19 @@ const messages = {
     app_loading_schema: "Loading schema…",
     app_schema_error: "Failed to load schema: {error}",
 
-    login_title: "Formular - Besucherbücher der kurfürstlich-königlichen Bibliothek in Dresden",
+    login_title:
+      "Formular - Besucherbücher der kurfürstlich-königlichen Bibliothek in Dresden",
     login_subtitle: "Sign in with your Wikibase account",
     login_invalid: "Invalid credentials",
     login_username: "Username",
     login_password: "Password",
     login_submit: "Login with Wikibase",
+    login_or: "or",
+    login_oauth_submit: "Login via FactGrid OAuth",
     login_oauth_version: "Using OAuth {version}",
 
-    nav_title: "Besucherbücher der kurfürstlich-königlichen Bibliothek in Dresden",
+    nav_title:
+      "Besucherbücher der kurfürstlich-königlichen Bibliothek in Dresden",
     nav_logout: "Logout",
     entity_type_label: "Entity type",
     entity_type_placeholder: "— Select —",
@@ -113,15 +117,19 @@ const messages = {
     app_loading_schema: "Schema wird geladen…",
     app_schema_error: "Schema konnte nicht geladen werden: {error}",
 
-    login_title: "Besucherbücher der kurfürstlich-königlichen Bibliothek in Dresden",
+    login_title:
+      "Besucherbücher der kurfürstlich-königlichen Bibliothek in Dresden",
     login_subtitle: "Mit Factgrid-Konto anmelden",
     login_invalid: "Ungültige Zugangsdaten",
     login_username: "Benutzername",
     login_password: "Passwort",
     login_submit: "Mit FactGrid anmelden",
+    login_or: "oder",
+    login_oauth_submit: "Über FactGrid OAuth anmelden",
     login_oauth_version: "Verwendet OAuth {version}",
 
-    nav_title: "Personen in Besucherbüchern der kurfürstlich-königlichen Bibliothek in Dresden",
+    nav_title:
+      "Personen in Besucherbüchern der kurfürstlich-königlichen Bibliothek in Dresden",
     nav_logout: "Abmelden",
     entity_type_label: "Entitätstyp",
     entity_type_placeholder: "— Auswählen —",
