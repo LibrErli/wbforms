@@ -454,6 +454,7 @@ classes:
     slots:
       - instance_of
       - description
+      - instance_of
       - family_name
       - given_name
       - date_of_birth

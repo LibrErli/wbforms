@@ -44,11 +44,40 @@ export default {
   name: "DateTimeInput",
   props: {
     modelValue: { type: String, default: "" },
+    // Calendar model IRI stored for this value; "" means "not set — use the default".
+    calendar: { type: String, default: "" },
+    // Schema-declared default for this field; values deviating from it are flagged.
+    defaultCalendar: { type: String, default: "" },
+    // [{ qid, iri, label_key }] as served by /api/schema/entities.
+    calendarOptions: { type: Array, default: () => [] },
   },
-  emits: ["update:modelValue"],
+  emits: ["update:modelValue", "update:calendar"],
   setup(props, { emit }) {
     const { ref, computed, watch } = Vue;
     const { t } = useI18n();
+
+    const showCalendar = computed(() => props.calendarOptions.length > 0);
+
+    // An unset calendar means the schema default will be applied on write.
+    const effectiveCalendar = computed(
+      () => props.calendar || props.defaultCalendar || "",
+    );
+
+    const calendarDeviates = computed(
+      () =>
+        showCalendar.value &&
+        !!props.defaultCalendar &&
+        !!effectiveCalendar.value &&
+        effectiveCalendar.value !== props.defaultCalendar,
+    );
+
+    function calendarLabel(option) {
+      return option.label_key ? t(option.label_key) : option.qid;
+    }
+
+    function onCalendarInput(e) {
+      emit("update:calendar", e.target.value);
+    }
 
     const initialParsed = parseWbTime(props.modelValue);
     const customMode = ref(
@@ -115,6 +144,11 @@ export default {
       toggleMode,
       invalidCustom,
       toggleDisabled,
+      showCalendar,
+      effectiveCalendar,
+      calendarDeviates,
+      calendarLabel,
+      onCalendarInput,
       t,
     };
   },
@@ -136,9 +170,22 @@ export default {
                 @click.prevent="toggleMode">
           <icon :name="customMode ? 'calendar' : 'pencil'" />
         </button>
+        <select v-if="showCalendar"
+                class="datetime-calendar"
+                :value="effectiveCalendar"
+                :title="t('calendar_label')"
+                :aria-label="t('calendar_label')"
+                @change="onCalendarInput">
+          <option v-for="opt in calendarOptions" :key="opt.iri" :value="opt.iri">
+            {{ calendarLabel(opt) }}
+          </option>
+        </select>
       </div>
       <small v-if="customMode" class="datetime-hint">{{ t('datetime_format_hint') }}</small>
       <small v-if="invalidCustom" class="datetime-hint datetime-hint--warn">{{ t('datetime_invalid_format') }}</small>
+      <small v-if="calendarDeviates" class="datetime-hint datetime-hint--warn">
+        {{ t('calendar_non_default_warning') }}
+      </small>
     </div>
   `,
 };

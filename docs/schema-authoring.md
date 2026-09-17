@@ -96,6 +96,48 @@ recorded before the subject item exists (see `object_named_as` below).
 | `external-id` | `external-id` | text input |
 | `monolingualtext` | `monolingualtext` | text input |
 
+### `calendar_model` — calendar for `time` slots
+
+Wikibase stores every time value together with a calendar model. Historical dates are
+often recorded in the **Julian** calendar (`Q1985786`) rather than the **Gregorian**
+default (`Q1985727`) — the FactGrid Besucherbuch persons are a typical case.
+
+Each `wikibase_type: time` slot gets a companion `<slot>_calendar` model field (the same
+pattern as `<slot>_sources`) and a calendar selector next to its date input. Two
+annotations set the default that is applied when nothing else says otherwise:
+
+```yaml
+annotations:                              # schema root
+  default_calendar_model: "Q1985786"      # default for every time slot
+
+slots:
+  date_of_death:
+    range: string
+    annotations:
+      wikibase_id: "https://database.factgrid.de/prop/direct/P38"
+      wikibase_type: time
+      calendar_model: "Q1985727"          # this slot overrides the schema default
+```
+
+Precedence, most specific first:
+
+1. the value the user picked in the form (`<slot>_calendar` on the request body);
+2. the **calendar already stored** on the claim being updated — an existing Julian date
+   keeps its calendar even when the date value itself is corrected, so editing an
+   unrelated field never silently rewrites it;
+3. the slot's `calendar_model` annotation;
+4. the schema root's `default_calendar_model`;
+5. Gregorian (`Q1985727`).
+
+Both annotations accept a bare QID or a full IRI. Only Gregorian and Julian are offered in
+the form, since those are the only calendar models Wikibase supports. Values whose stored
+calendar differs from the field's default are flagged in the form so historical dates are
+visible at a glance.
+
+> Multivalued time slots pair positionally with `<slot>_calendar`, mirroring
+> `<slot>_sources`. Because such claims are removed and rebuilt on update, an unchanged
+> calendar is carried over by matching the time string.
+
 ### Other slot properties
 
 | Property | Effect |

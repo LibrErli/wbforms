@@ -5,16 +5,26 @@ from typing import get_args
 import html
 import re
 
-import yaml
 import httpx
+import yaml
 from fastapi import APIRouter, Query
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
+from wikibaseintegrator import datatypes
 
 from wbforms.codegen import get_models
 from wbforms.codegen.endpoints import derive_endpoints
-from wbforms.datamodel.item import WIKIBASE_ID, WIKIBASE_TYPE, StatementBase, WikibaseReferenceBase
+from wbforms.datamodel.item import (
+    CALENDAR_FIELD_SUFFIX,
+    CALENDAR_MODEL,
+    WIKIBASE_ID,
+    WIKIBASE_TYPE,
+    StatementBase,
+    WikibaseReferenceBase,
+    calendar_field_name,
+)
 from wbforms.settings import get_settings
+from wbforms.wb_calendar import DEFAULT_CALENDAR_MODEL, calendar_model_options
 from wbforms.wbgenerator import _is_list_annotation, _wikibase_reference_class, get_statement_field_type
 
 _STATIC_DIR = Path(__file__).parent.parent / "static"
@@ -56,7 +66,7 @@ def _get_localized_label(slot_name: str, language: str = "de") -> str:
     Label aus dem Slot-Namen erstellt.
     """
     schema = _get_schema()
-    
+
     # Suche nach dem Slot in den Slots des Schemas
     slots = schema.get("slots", {})
     if slot_name in slots:
@@ -75,7 +85,7 @@ def _get_localized_label(slot_name: str, language: str = "de") -> str:
             for lang_data in local_names.values():
                 if isinstance(lang_data, dict) and "local_name_value" in lang_data:
                     return lang_data["local_name_value"]
-    
+
     # Fallback: generisches Label aus dem Slot-Namen
     return _label(slot_name)
 
@@ -91,6 +101,9 @@ def _build_statement_fields(stmt_cls: type[StatementBase], language: str = "en")
     fields = []
     for fname, finfo in stmt_cls.model_fields.items():
         if fname in _SKIP_FIELDS:
+            continue
+        # `<X>_calendar` companions are rendered alongside their base field, not as separate inputs.
+        if fname.endswith(CALENDAR_FIELD_SUFFIX):
             continue
         extra = finfo.json_schema_extra if isinstance(finfo.json_schema_extra, dict) else {}
         wb_id = extra.get(WIKIBASE_ID, "")
@@ -196,8 +209,9 @@ def _build_entity_schema(
     for fname, finfo in model_cls.model_fields.items():
         if fname in _SKIP_FIELDS or fname in {"label", "description"}:
             continue
-        # `<X>_sources` companions are rendered alongside their base field, not as separate inputs.
-        if fname.endswith("_sources"):
+        # `<X>_sources` / `<X>_calendar` companions are rendered alongside their base
+        # field, not as separate inputs.
+        if fname.endswith("_sources") or fname.endswith(CALENDAR_FIELD_SUFFIX):
             continue
 
         extra = finfo.json_schema_extra if isinstance(finfo.json_schema_extra, dict) else {}
@@ -271,6 +285,12 @@ def get_public_config() -> dict:
     s = get_settings()
     return {
         "oauth_version": s.oauth_version,
+        "oauth_configured": bool(
+            s.oauth_client_id
+            and s.oauth_client_secret
+            and s.oauth_client_secret.get_secret_value()
+            and s.oauth_redirect_uri
+        ),
         "wikibase_website": s.wikibase_website.unicode_string(),
     }
 
@@ -381,9 +401,21 @@ async def entity_label(qid: str = Query(...), language: str = "de") -> dict:
 
 @router.get("/")
 def serve_index() -> FileResponse:
-    return FileResponse(_STATIC_DIR / "index.html")
+    return _index_response()
 
 
 @router.get("/form/{path:path}")
 def serve_form(path: str) -> FileResponse:
-    return FileResponse(_STATIC_DIR / "index.html")
+    return _index_response()
+
+
+def _index_response() -> FileResponse:
+    """Serve the SPA shell without allowing stale cross-deployment caching."""
+    return FileResponse(
+        _STATIC_DIR / "index.html",
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+            "Pragma": "no-cache",
+            "Expires": "0",
+        },
+    )

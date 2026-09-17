@@ -60,7 +60,9 @@ export default {
         <div v-for="rf in referenceFields" :key="rf.name" class="field-row">
           <label>{{ rf.label }}</label>
           <field-input :field="rf" :model-value="src[rf.name]"
-                       @update:model-value="updateField(idx, rf.name, $event)" />
+                       :calendar="rf.calendar_field ? src[rf.calendar_field] : null"
+                       @update:model-value="updateField(idx, rf.name, $event)"
+                       @update:calendar="updateField(idx, rf.calendar_field, $event)" />
         </div>
       </div>
       <button class="link-btn" type="button" @click="addBlock">

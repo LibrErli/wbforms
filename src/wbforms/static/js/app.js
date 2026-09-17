@@ -96,6 +96,7 @@ const App = {
     }
 
     function onLogin(token) {
+      localStorage.setItem("token", token);
       state.token = token;
       state.username = usernameFromToken(token);
       state.schemaError = null;
@@ -113,11 +114,14 @@ const App = {
     loadSchema();
 
     // Reload schema when language changes
-    watch(() => locale.value, () => {
-      if (isLoggedIn.value) {
-        loadSchema();
-      }
-    });
+    watch(
+      () => locale.value,
+      () => {
+        if (isLoggedIn.value) {
+          loadSchema();
+        }
+      },
+    );
 
     return { state, isLoggedIn, onLogin, onLogout, t };
   },

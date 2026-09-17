@@ -33,6 +33,41 @@ export default {
       return Array.isArray(value) ? value.join(", ") : String(value);
     }
 
+    // `<X>_calendar` companions: base-field label and the calendar options, so the
+    // diff can show "Gregorian → Julian" rather than two entity IRIs.
+    const calendarCompanions = computed(() => {
+      const m = {};
+      const collect = (fields) => {
+        for (const f of fields ?? []) {
+          if (f.calendar_field) {
+            m[f.calendar_field] = {
+              label: f.label,
+              options: f.calendar_options ?? [],
+            };
+          }
+          collect(f.statement_fields);
+          collect(f.reference_fields);
+        }
+      };
+      collect(props.entityConfig?.fields);
+      return m;
+    });
+
+    function calendarName(iri, options) {
+      const opt = (options || []).find((o) => o.iri === iri);
+      if (opt) return opt.label_key ? t(opt.label_key) : opt.qid;
+      return String(iri).split("/").pop();
+    }
+
+    function formatCalendarValue(value, options) {
+      if (value == null || value === "") return null;
+      const list = Array.isArray(value) ? value : [value];
+      return list
+        .filter((v) => v !== "" && v != null)
+        .map((v) => calendarName(v, options))
+        .join(", ");
+    }
+
     // Build a map of base-field-name → reference_fields for sources filtering / counting.
     const referenceFieldsByName = computed(() => {
       const m = {};
@@ -93,14 +128,21 @@ export default {
           oldVal === "" ||
           (Array.isArray(oldVal) && !oldVal.length);
         if (isEmpty && wasEmpty) continue;
+        const companion = calendarCompanions.value[k];
         const newStr = isEmpty ? null : toComparableString(v);
         const oldStr = toComparableString(oldVal);
         if (newStr === oldStr) continue;
         fields.push({
           name: k,
-          label: k.replace(/_/g, " "),
-          oldVal: oldStr,
-          newVal: newStr,
+          label: companion
+            ? `${companion.label} — ${t("calendar_label")}`
+            : k.replace(/_/g, " "),
+          oldVal: companion
+            ? formatCalendarValue(oldVal, companion.options)
+            : oldStr,
+          newVal: companion
+            ? formatCalendarValue(isEmpty ? null : v, companion.options)
+            : newStr,
         });
       }
       return fields;
@@ -195,7 +237,13 @@ export default {
         .filter(
           ([, v]) => v !== "" && v != null && !(Array.isArray(v) && !v.length),
         )
-        .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`)
+        .map(([k, v]) => {
+          const companion = calendarCompanions.value[k];
+          if (companion) {
+            return `${k}: ${formatCalendarValue(v, companion.options)}`;
+          }
+          return `${k}: ${Array.isArray(v) ? v.join(", ") : v}`;
+        })
         .join(" · ");
     }
 

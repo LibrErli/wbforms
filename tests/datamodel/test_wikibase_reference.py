@@ -13,10 +13,14 @@ class TestWikibaseReferenceModel(unittest.TestCase):
         cls.WikibaseReference = cls.models["WikibaseReference"]
 
     def test_wikibase_reference_fields(self):
-        """WikibaseReference exposes the three configured slots."""
+        """WikibaseReference exposes the three configured slots.
+
+        `retrieved` is a time slot, so codegen pairs it with a `retrieved_calendar`
+        sibling carrying the Wikibase calendar model.
+        """
         self.assertEqual(
             sorted(self.WikibaseReference.model_fields.keys()),
-            ["reference_url", "retrieved", "stated_in"],
+            ["reference_url", "retrieved", "retrieved_calendar", "stated_in"],
         )
 
     def test_get_reference_fields_identifies_all(self):
