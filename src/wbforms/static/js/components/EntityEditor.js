@@ -29,6 +29,7 @@ export default {
     const selectedEntityName = ref("");
     const qidInput = ref("");
     const qidLabel = ref("");
+    const searchText = ref("");
     const loadedData = ref(null);
     const pendingData = reactive({});
     const isNew = ref(false);
@@ -207,7 +208,8 @@ export default {
     }
 
     function openExternalSearch(source) {
-      const query = qidLabel.value.trim() || qidInput.value.trim();
+      // Prioritaet: Label (textueller Name) > SearchText (Eingabe) > QID > leerer String
+      const query = qidLabel.value.trim() || searchText.value.trim() || qidInput.value.trim();
       
       if (!query) return;
 
@@ -286,6 +288,7 @@ export default {
       statementFields,
       qidInput,      
       qidLabel,
+      searchText,
       loadedData,
       pendingData,
       isNew,
@@ -347,7 +350,9 @@ export default {
             <item-search-input
               v-model="qidInput"              
               :label="qidLabel"
+              :searchText="searchText"
               @update:label="qidLabel = $event"
+              @update:searchText="searchText = $event"
               :disabled="!selectedEntity"
             />
             <button @click="load" :aria-busy="loadLoading" :disabled="!selectedEntity || !isValidQid" style="margin-top: 0.4rem;">
@@ -361,10 +366,10 @@ export default {
 
           <div class="rail-field" id="external-search-btns">
            <label>{{ t('entity_external_search') }}</label>
-            <button class="secondary outline" :title="'Suche in GND-Explorer'" @click="openExternalSearch('gnd')" :disabled="!qidInput.trim()"><span>GND</span></button>
-            <button class="secondary outline" :title="'Suche in WBIS'" @click="openExternalSearch('wbis')" :disabled="!qidInput.trim()"><span>WBIS</span></button>
-            <button class="secondary outline" :title="'Suche in Deutsche Biografie'" @click="openExternalSearch('bio')" :disabled="!qidInput.trim()"><span>Deutsche Biographie</span></button>
-            <button class="secondary outline" :title="'Suche in Wikipedia'" @click="openExternalSearch('wiki')" :disabled="!qidInput.trim()"><span>Wikipedia</span></button>
+            <button class="secondary outline" :title="'Suche in GND-Explorer'" @click="openExternalSearch('gnd')" :disabled="!qidLabel.trim() && !qidInput.trim() && !searchText.trim()"><span>GND</span></button>
+            <button class="secondary outline" :title="'Suche in WBIS'" @click="openExternalSearch('wbis')" :disabled="!qidLabel.trim() && !qidInput.trim() && !searchText.trim()"><span>WBIS</span></button>
+            <button class="secondary outline" :title="'Suche in Deutsche Biografie'" @click="openExternalSearch('bio')" :disabled="!qidLabel.trim() && !qidInput.trim() && !searchText.trim()"><span>Deutsche Biographie</span></button>
+            <button class="secondary outline" :title="'Suche in Wikipedia'" @click="openExternalSearch('wiki')" :disabled="!qidLabel.trim() && !qidInput.trim() && !searchText.trim()"><span>Wikipedia</span></button>
           </div>
         </aside>
 

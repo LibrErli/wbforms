@@ -7,8 +7,9 @@ export default {
   props: {
     modelValue: { type: String, default: "" },
     label: { type: String, default: "" },
+    searchText: { type: String, default: "" },
   },
-  emits: ["update:modelValue", "update:label"],
+  emits: ["update:modelValue", "update:label", "update:searchText"],
   setup(props, { emit }) {
     const { ref, watch, nextTick } = Vue;
     const { t } = useI18n();
@@ -19,7 +20,7 @@ export default {
 
     // --- Search state ---
     const isSearching = ref(true);
-    const searchText = ref("");
+    const searchText = ref(props.searchText || "");
     const suggestions = ref([]);
     const activeIdx = ref(-1);
     const searchError = ref("");
@@ -74,6 +75,7 @@ export default {
       suggestions.value = [];
       searchError.value = "";
       isSearching.value = true;
+      emit("update:searchText", searchText.value);
       // Auto-trigger search so suggestions appear immediately with the pre-filled text
       nextTick(() => {
         if (searchText.value.trim()) onSearchInput();
@@ -83,9 +85,11 @@ export default {
     function cancelSearch() {
       if (selectedQid.value) {
         isSearching.value = false;
+        emit("update:searchText", "");
       } else {
         searchText.value = "";
         suggestions.value = [];
+        emit("update:searchText", "");
       }
     }
 
@@ -97,6 +101,7 @@ export default {
       suggestions.value = [];
       emit("update:modelValue", "");
       emit("update:label", "");
+      emit("update:searchText", "");
     }
 
     function select(item) {
@@ -106,6 +111,7 @@ export default {
       isSearching.value = false;
       emit("update:modelValue", item.id);
       emit("update:label", item.label || item.id);
+      emit("update:searchText", "");
     }
 
     async function confirmQid(qid) {
@@ -115,6 +121,7 @@ export default {
       suggestions.value = [];
       emit("update:modelValue", qid);
       emit("update:label", "");
+      emit("update:searchText", "");
       const label = await getLabel(qid);
       if (selectedQid.value === qid) {
         selectedLabel.value = label;
@@ -128,6 +135,7 @@ export default {
       clearTimeout(debounceTimer);
       searchError.value = "";
       const q = searchText.value.trim();
+      emit("update:searchText", q);
       if (!q) {
         suggestions.value = [];
         return;
