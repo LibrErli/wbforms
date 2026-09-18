@@ -1,5 +1,5 @@
 id: https://database.factgrid.de/schema/besucherbuch
-name: Besucherbuch
+name: Person_Besucherbuch
 description: Schema for Besucherbuch entities with Wikibase property mappings
 
 prefixes:
@@ -33,7 +33,6 @@ slots:
         local_name_value: "Beschreibung"
   instance_of:
     range: string
-    required: true
     ifabsent: "https://database.factgrid.de/entity/Q7"
     local_names:
       en:
@@ -42,9 +41,10 @@ slots:
         local_name_value: "ist ein/e"
     annotations:
       wikibase_id: "https://database.factgrid.de/prop/direct/P2"
-      wikibase_type: item     
+      wikibase_type: item        
   family_name:
     range: string
+    multivalued: true
     local_names:
       en:
         local_name_value: "Family name"
@@ -104,6 +104,37 @@ slots:
     annotations:
       wikibase_id: "https://database.factgrid.de/prop/direct/P168"
       wikibase_type: item
+  place_from:
+    range: string
+    local_names:
+      en:
+        local_name_value: "From (place as mentioned)"
+      de:
+        local_name_value: "Genannter Herkunftsort (bei fehlendem Geburtsort)"
+    annotations:
+      wikibase_id: "https://database.factgrid.de/prop/direct/P295"
+      wikibase_type: item
+  location_identiy:
+    range: string
+    local_names:
+      en:
+        local_name_value: "Location of identity"
+      de:
+        local_name_value: "Herkunftsterritorium"
+    annotations:
+      wikibase_id: "https://database.factgrid.de/prop/direct/P814"
+      wikibase_type: item
+  country_citizenship:
+    range: string
+    multivalued: true
+    local_names:
+      en:
+        local_name_value: "Country of citizenship"
+      de:
+        local_name_value: "Land der Staatsangehörigkeit"
+    annotations:
+      wikibase_id: "https://database.factgrid.de/prop/direct/P616"
+      wikibase_type: item                     
   career_statement:
     range: string
     multivalued: true
@@ -176,6 +207,17 @@ slots:
     annotations:
       wikibase_id: "https://database.factgrid.de/prop/direct/P173"
       wikibase_type: string
+  aristocratic:
+    range: string
+    multivalued: true
+    local_names:
+      en:
+        local_name_value: "Aristocratic Title"
+      de:
+        local_name_value: "Adelstitel"
+    annotations:
+      wikibase_id: "https://database.factgrid.de/prop/direct/P26"
+      wikibase_type: item      
   gnd_id:
     range: string
     local_names:
@@ -186,14 +228,60 @@ slots:
     annotations:
       wikibase_id: "https://database.factgrid.de/prop/direct/P76"
       wikibase_type: external-id
+  wbis_id:
+    range: string
+    local_names:
+      en:
+        local_name_value: "WBIS-ID"
+      de:
+        local_name_value: "WBIS-ID"
+    annotations:
+      wikibase_id: "https://database.factgrid.de/prop/direct/P1533"
+      wikibase_type: external-id
+  adb:
+    range: string
+    local_names:
+      en:
+        local_name_value: "ADB"
+      de:
+        local_name_value: "ADB Lemma"
+    annotations:
+      wikibase_id: "https://database.factgrid.de/prop/direct/P741"
+      wikibase_type: external-id
 
   station_id:
     range: item_statement_subject
+    local_names:
+      en:
+        local_name_value: "Station ID"
+      de:
+        local_name_value: "Aufenthaltsort (Identifikator)"
     annotations:
-      wikibase_id: "https://ceur-dev.wikibase.cloud/prop/statement/P296"
+      wikibase_id: "https://database.factgrid.de/prop/statement/P296"
       wikibase_type: item
 
+  other_person_id:
+    range: item_statement_subject
+    local_names:
+      en:
+        local_name_value: "Other Person"
+      de:
+        local_name_value: "Weitere Person in Gruppe"
+    annotations:
+      wikibase_id: "https://database.factgrid.de/prop/statement/P703"
+      wikibase_type: item    
+
   # Qualifier
+  position:
+    range: quantity
+    local_names:
+      en:
+        local_name_value: "Serial number"
+      de:
+        local_name_value: "Position in Folge"
+    annotations:
+      wikibase_id: "https://database.factgrid.de/prop/qualifier/P499"
+      wikibase_type: quantity  
   begin_date:
     range: string
     local_names:
@@ -254,6 +342,17 @@ slots:
     annotations:
       wikibase_id: "https://database.factgrid.de/prop/qualifier/P35"
       wikibase_type: string
+  note_qual:
+    range: string
+    local_names:
+      en:
+        local_name_value: "Note"
+      de:
+        local_name_value: "Notiz"
+    annotations:
+      wikibase_id: "https://database.factgrid.de/prop/qualifier/P73"
+      wikibase_type: string
+
 
   # Statement-reference slots (range is a schema class, no Wikibase annotations)
   stay_in:
@@ -265,6 +364,16 @@ slots:
         local_name_value: "Stay in"
       de:
         local_name_value: "Aufenthalt in"
+
+  person_group:
+    range: PersonGroup
+    multivalued: true
+    inlined_as_list: true
+    local_names:
+      en:
+        local_name_value: "group of persons"
+      de:
+        local_name_value: "Personengruppe"
 
   # Wikibase statement-level reference slots (path segment: /reference/Pxx)
   ref_begin_date:
@@ -317,6 +426,16 @@ slots:
     annotations:
       wikibase_id: "https://database.factgrid.de/prop/reference/P138"
       wikibase_type: url
+  ref_wikisource_page:
+    range: string
+    local_names:
+      en:
+        local_name_value: "Wikisource Page"
+      de:
+        local_name_value: "Wikisource Seite"
+    annotations:
+      wikibase_id: "https://database.factgrid.de/prop/reference/P1534"
+      wikibase_type: string
   ref_literal_statement:
     range: string
     local_names:
@@ -329,55 +448,90 @@ slots:
       wikibase_type: string
 
 classes:
-  Besucherbuch:
+  Person_Besucherbuch:
     annotations:
       python_base: entity_item
     slots:
-      - description
       - instance_of
+      - description
       - family_name
       - given_name
       - date_of_birth
       - date_of_death
       - place_of_birth
       - place_of_death
+      - place_from
+      - country_citizenship
+      - location_identiy
       - stay_in
       - career_statement
       - online_information
       - work_location
-      - research_project_reference
+      - aristocratic
       - note
-      - notate
       - biographical_notes
       - gnd_id
+      - wbis_id
+      - adb
+      - person_group
     slot_usage:
       stay_in:
         annotations:
           supports_references: true
+      person_group:
+        annotations:
+          supports_references: true 
+      instance_of:
+        annotations:
+          default_value: Q7
+
+  FamilyName:
+    annotations:
+      python_base: entity_item
+    slots:
+      - instance_of
+      - description
+    slot_usage:
+      instance_of:
+        annotations:
+          default_value: Q24499
 
   StayIn:
     annotations:
       python_base: extracted_statement
       model_title: StayIn
-      enforce_unknown_stmt_name: true
+      enforce_unknown_stmt_name: false
       supports_references: true
     slots:
       - station_id
       - begin_date
       - end_date
-      - primary_source
-      - page
-      - online_digistation
-      - literal_statement
+    slot_usage:
+      station_id:
+        annotations:
+          default_value: Q1872083
+
+  PersonGroup:
+    annotations:
+      python_base: extracted_statement
+      model_title: PersonGroup
+      enforce_unknown_stmt_name: false
+      supports_references: true
+    slots:
+      - other_person_id
+      - note_qual
 
   WikibaseReference:
     description: A Wikibase statement-level reference block (group of snaks documenting provenance).
     annotations:
       python_base: wikibase_reference
     slots:
-      - ref_begin_date
-      - ref_end_date
       - ref_primary_source
       - ref_page
       - ref_online_digistation
+      - ref_wikisource_page
       - ref_literal_statement
+    slot_usage:
+      ref_primary_source:
+        annotations:
+          default_value: Q1871961
