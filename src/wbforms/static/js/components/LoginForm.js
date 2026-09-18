@@ -66,22 +66,21 @@ export default {
           <p>{{ t('login_subtitle') }}</p>
         </hgroup>
         <div v-if="error" class="error-banner">{{ error }}</div>
-        <template v-if="!config?.oauth_configured">
-          <form @submit.prevent="loginWithPassword">
-            <label>
-              {{ t('login_username') }}
-              <input v-model="username" name="username" autocomplete="username" required />
-            </label>
-            <label>
-              {{ t('login_password') }}
-              <input v-model="password" name="password" type="password" autocomplete="current-password" required />
-            </label>
-            <button type="submit" :aria-busy="loading" :disabled="loading">
-              {{ t('login_submit') }}
-            </button>
-          </form>
-        </template>
+        <form @submit.prevent="loginWithPassword">
+          <label>
+            {{ t('login_username') }}
+            <input v-model="username" name="username" autocomplete="username" required />
+          </label>
+          <label>
+            {{ t('login_password') }}
+            <input v-model="password" name="password" type="password" autocomplete="current-password" required />
+          </label>
+          <button type="submit" :aria-busy="loading" :disabled="loading">
+            {{ t('login_submit') }}
+          </button>
+        </form>
         <template v-if="config?.oauth_configured">
+          <p class="login-divider">{{ t('login_or') }}</p>
           <button type="button" class="secondary" :aria-busy="loading" :disabled="loading" @click="loginWithWikibase">
             {{ t('login_oauth_submit') }}
           </button>
