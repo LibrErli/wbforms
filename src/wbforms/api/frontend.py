@@ -111,7 +111,8 @@ def _build_statement_fields(stmt_cls: type[StatementBase], language: str = "en")
             entry["annotations"] = extra
         if fname == subject_field_name:
             entry["is_subject"] = True
-        if fname == "object_named_as":
+        # Mark as object_named_as if the field is named 'object_named_as' and is a qualifier
+        if fname == "object_named_as" and wb_id and "/prop/qualifier/" in wb_id:
             entry["is_object_named_as"] = True
         fields.append(entry)
     return fields

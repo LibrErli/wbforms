@@ -99,43 +99,10 @@ class Statement(StatementBase):
 
 class ExtractedStatement(StatementBase):
     """
-    Statement which is extracted and thus has the object named as qualifier set
-    The extracted value field is optional to be compatible to already existing entries
+    Statement class for extracted statements.
+    The object_named_as field is added dynamically if defined in the schema as a qualifier slot.
     """
-
-    object_named_as: Annotated[
-        str | None,
-        Field(
-            json_schema_extra={
-                WIKIBASE_ID: "https://ceur-dev.wikibase.cloud/prop/qualifier/P91",
-                WIKIBASE_TYPE: datatypes.String.DTYPE,
-            }
-        ),
-    ] = None
-
-    @model_validator(mode="after")
-    def validate_object_named_as(self) -> Self:
-        """
-        Check if the object_named_as field must be set
-        """
-        statement_object_field = self.get_statement_subject(WIKIBASE_ID)
-        statement_object_value = getattr(self, statement_object_field)
-        if statement_object_value == WikibaseSnakType.UNKNOWN_VALUE.value and self.object_named_as is None:
-            raise ValueError(
-                f"If the statement object field {statement_object_field} is set as unknown value the object_named_as "
-                f"field must be set."
-            )
-        return self
-
-    def __eq__(self, other):
-        other_object_named_as = getattr(other, "object_named_as", None)
-        if None in [self.object_named_as, other_object_named_as]:
-            if isinstance(other, str):
-                return False
-            stmt_object_field = self.get_statement_subject(WIKIBASE_ID)
-            return getattr(self, stmt_object_field) == getattr(other, stmt_object_field)
-        else:
-            return self.object_named_as == other_object_named_as
+    pass
 
 
 ItemStatementSubjectType = Literal["somevalue", "novalue"] | constr(pattern=r"^Q\d+$")

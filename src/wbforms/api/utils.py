@@ -152,7 +152,9 @@ def handle_statement_deletion_by_object(
     """
     try:
         item: ItemEntity = wikibase.get_item(item_id)
-        subject_to_delete = model(object_named_as=object_named_as)
+        # Only pass object_named_as if the model has this field
+        kwargs = {"object_named_as": object_named_as} if "object_named_as" in model.model_fields else {}
+        subject_to_delete = model(**kwargs)
         is_removed = delete_statement_by_matching_model(item, subject_to_delete)
         if is_removed:
             wikibase.write_item(item, summary=f"Removes {get_model_label(model)}")
