@@ -6,15 +6,16 @@ export default {
   name: "ItemSearchInput",
   props: {
     modelValue: { type: String, default: "" },
+    label: { type: String, default: "" },
   },
-  emits: ["update:modelValue"],
+  emits: ["update:modelValue", "update:label"],
   setup(props, { emit }) {
     const { ref, watch, nextTick } = Vue;
     const { t } = useI18n();
 
     // --- Selected state ---
     const selectedQid = ref("");
-    const selectedLabel = ref("");
+    const selectedLabel = ref(props.label || "");
 
     // --- Search state ---
     const isSearching = ref(true);
@@ -30,11 +31,13 @@ export default {
       selectedQid.value = qid;
       selectedLabel.value = "";
       isSearching.value = false;
+      emit("update:label", "");
       console.log(`ItemSearchInput.initFromQid - set isSearching=false, selectedQid=`, selectedQid.value);
       const label = await getLabel(qid);
       console.log(`ItemSearchInput.initFromQid - got label for ${qid}:`, label);
       if (selectedQid.value === qid) {
         selectedLabel.value = label;
+        emit("update:label", label || qid);
         console.log(`ItemSearchInput.initFromQid - set selectedLabel=`, selectedLabel.value);
       } else {
         console.log(`ItemSearchInput.initFromQid - WARNING: selectedQid changed, not setting label`);
@@ -93,6 +96,7 @@ export default {
       searchText.value = "";
       suggestions.value = [];
       emit("update:modelValue", "");
+      emit("update:label", "");
     }
 
     function select(item) {
@@ -101,6 +105,7 @@ export default {
       suggestions.value = [];
       isSearching.value = false;
       emit("update:modelValue", item.id);
+      emit("update:label", item.label || item.id);
     }
 
     async function confirmQid(qid) {
@@ -109,8 +114,12 @@ export default {
       isSearching.value = false;
       suggestions.value = [];
       emit("update:modelValue", qid);
+      emit("update:label", "");
       const label = await getLabel(qid);
-      if (selectedQid.value === qid) selectedLabel.value = label;
+      if (selectedQid.value === qid) {
+        selectedLabel.value = label;
+        emit("update:label", label || qid);
+      }
     }
 
     // --- Search input handlers ---

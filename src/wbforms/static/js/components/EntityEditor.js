@@ -28,6 +28,7 @@ export default {
 
     const selectedEntityName = ref("");
     const qidInput = ref("");
+    const qidLabel = ref("");
     const loadedData = ref(null);
     const pendingData = reactive({});
     const isNew = ref(false);
@@ -205,6 +206,20 @@ export default {
       }
     }
 
+    function openExternalSearch(source) {
+      const query = qidLabel.value.trim() || qidInput.value.trim();
+      
+      if (!query) return;
+
+      const urls = {
+        gnd: `https://lobid.org/gnd/search?q=${encodeURIComponent(query)}`,
+        wbis: `https://www.degruyterbrill.com/de/database/wbis/search?query=((${encodeURIComponent(query)}))&databases=AFBA~ABA~AIBA~ANZOBA~BABA~BACHR~BAB~BAA~BAMA~BBA~CABA~CBA~CSBA~ABF~DBA~GBA~UBA~IBA~ABI~JABA~JBA~KBA~PAB~RSUBA~SBA~SEABA~SOBA~ABEPI~TBA&keywordTypesAndValues=&matchAnyTerm=false`,
+        bio: `https://www.deutsche-biographie.de/search?name=${encodeURIComponent(query)}`,
+        wiki: `https://de.wikipedia.org/w/index.php?search=${encodeURIComponent(query)}`,
+      };
+      window.open(urls[source], "_blank");
+    }
+
     function startNew() {
       qidInput.value = "";
       isNew.value = true;
@@ -269,7 +284,8 @@ export default {
       selectedEntity,
       simpleFields,
       statementFields,
-      qidInput,
+      qidInput,      
+      qidLabel,
       loadedData,
       pendingData,
       isNew,
@@ -292,6 +308,7 @@ export default {
       locale,
       setLocale,
       LANGUAGES,
+      openExternalSearch,
     };
   },
   template: `
@@ -328,7 +345,9 @@ export default {
           <div class="rail-field">
             <label>{{ t('entity_load_label') }}</label>
             <item-search-input
-              v-model="qidInput"
+              v-model="qidInput"              
+              :label="qidLabel"
+              @update:label="qidLabel = $event"
               :disabled="!selectedEntity"
             />
             <button @click="load" :aria-busy="loadLoading" :disabled="!selectedEntity || !isValidQid" style="margin-top: 0.4rem;">
@@ -339,7 +358,17 @@ export default {
           <button class="secondary outline" :disabled="!selectedEntity" @click="startNew">
             {{ t('entity_new_button') }}
           </button>
+
+          <div class="rail-field" id="external-search-btns">
+           <label>{{ t('entity_external_search') }}</label>
+            <button class="secondary outline" :title="'Suche in GND-Explorer'" @click="openExternalSearch('gnd')" :disabled="!qidInput.trim()"><span>GND</span></button>
+            <button class="secondary outline" :title="'Suche in WBIS'" @click="openExternalSearch('wbis')" :disabled="!qidInput.trim()"><span>WBIS</span></button>
+            <button class="secondary outline" :title="'Suche in Deutsche Biografie'" @click="openExternalSearch('bio')" :disabled="!qidInput.trim()"><span>Deutsche Biographie</span></button>
+            <button class="secondary outline" :title="'Suche in Wikipedia'" @click="openExternalSearch('wiki')" :disabled="!qidInput.trim()"><span>Wikipedia</span></button>
+          </div>
         </aside>
+
+
 
         <section class="main-pane">
           <div v-if="loadError" class="error-banner">{{ loadError }}</div>
