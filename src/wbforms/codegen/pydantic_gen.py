@@ -334,6 +334,23 @@ def generate_models(schema_path: Path) -> dict[str, type]:
             if enforce_stmt_name:
                 extra_attrs["_enforce_unknown_stmt_name"] = True
             base_cls = type(f"_{class_name}Configured", (base_cls,), extra_attrs)
+        
+        # Add custom __eq__ method to base_cls if the class has object_named_as field
+        # This is needed for statement content-based resolution in wbgenerator.py
+        if "object_named_as" in field_defs:
+            def _eq_with_object_named_as(self, other):
+                """Custom equality for extracted statements with object_named_as."""
+                other_object_named_as = getattr(other, "object_named_as", None)
+                self_object_named_as = getattr(self, "object_named_as", None)
+                if None in [self_object_named_as, other_object_named_as]:
+                    if isinstance(other, str):
+                        return False
+                    stmt_object_field = self.get_statement_subject(WIKIBASE_ID)
+                    return getattr(self, stmt_object_field, None) == getattr(other, stmt_object_field, None)
+                else:
+                    return self_object_named_as == other_object_named_as
+            
+            base_cls = type(f"_{class_name}WithObjectNamedAsEq", (base_cls,), {"__eq__": _eq_with_object_named_as, "__module__": "wbforms.codegen"})
 
         base_model = create_model(
             f"{class_name}Base",

@@ -118,6 +118,10 @@ def _statement_router(ep: dict, models: dict) -> APIRouter:
     CreateModel = models[f"{model_name}Create"]
     UpdateModel = models[f"{model_name}Update"]
     BaseModel = models[f"{model_name}Base"]
+    
+    # Only enable delete_by_object if the model has the object_named_as field
+    if has_delete_by_object:
+        has_delete_by_object = "object_named_as" in BaseModel.model_fields
 
     router = APIRouter(
         prefix=ep["prefix"],
