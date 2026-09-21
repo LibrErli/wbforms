@@ -23,7 +23,7 @@ def get_default_user_agent() -> str:
     settings = get_settings()
     if settings.request_header_user_agent:
         return settings.request_header_user_agent
-    return f"FactGridSyncWdBot 1.0 ({date.today()})"
+    return f"wbforms/1.0 (Wikibase Forms Editor {date.today()})"
 
 
 def log_execution_time(func):
