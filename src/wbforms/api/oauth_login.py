@@ -8,6 +8,7 @@ obtained authorization-code access token.
 
 from requests_oauthlib import OAuth2Session
 from wikibaseintegrator.wbi_login import _Login
+from wbforms.wikibase import get_default_user_agent
 
 
 class UserOAuth2(_Login):
@@ -38,6 +39,7 @@ class UserOAuth2(_Login):
             auto_refresh_kwargs={"client_id": client_id, "client_secret": client_secret} if auto_refresh_url else {},
             token_updater=lambda _t: None,
         )
+        session.headers.update({"User-Agent": get_default_user_agent()})
         super().__init__(
             session=session,
             mediawiki_api_url=mediawiki_api_url,

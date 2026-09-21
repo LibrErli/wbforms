@@ -54,6 +54,9 @@ class Settings(BaseSettings):
     app_base_url: HttpUrl = HttpUrl("http://localhost:8000/")
     session_ttl_minutes: int = 60
 
+    # Request headers
+    request_header_user_agent: str | None = None
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:

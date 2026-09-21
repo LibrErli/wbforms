@@ -34,6 +34,7 @@ from wbforms.api.auth import (
 from wbforms.datamodel.auth import WikibaseOauth1, WikibaseUserOAuth2
 from wbforms.session import WikibaseSession
 from wbforms.settings import get_settings
+from wbforms.wikibase import get_default_user_agent
 
 router = APIRouter(prefix="/oauth", tags=["Authentication"])
 
@@ -112,7 +113,10 @@ async def _oauth2_callback(code: str, state: str) -> RedirectResponse:
 
     token_url = f"{_rest_base()}/oauth2/access_token"
     profile_url = f"{_rest_base()}/oauth2/resource/profile"
-    async with httpx.AsyncClient(timeout=15.0) as client:
+    async with httpx.AsyncClient(
+        timeout=15.0,
+        headers={"User-Agent": get_default_user_agent()}
+    ) as client:
         resp = await client.post(
             token_url,
             data={
@@ -158,6 +162,7 @@ async def _oauth1_login() -> RedirectResponse:
         # MediaWiki uses the callback URL registered with the consumer, so the
         # client always passes the literal "oob" here per the OAuth/initiate spec.
         session = OAuth1Session(client_key=client_id, client_secret=client_secret, callback_uri="oob")
+        session.headers.update({"User-Agent": get_default_user_agent()})
         return session.fetch_request_token(initiate_url)
 
     try:
@@ -191,6 +196,7 @@ async def _oauth1_callback(oauth_token: str, oauth_verifier: str) -> RedirectRes
             resource_owner_secret=request_secret,
             verifier=oauth_verifier,
         )
+        session.headers.update({"User-Agent": get_default_user_agent()})
         return session.fetch_access_token(token_url)
 
     try:
@@ -228,6 +234,7 @@ def _oauth1_identify(client_id: str, client_secret: str, access_token: str, acce
             resource_owner_key=access_token,
             resource_owner_secret=access_secret,
         )
+        session.headers.update({"User-Agent": get_default_user_agent()})
         resp = session.get(identify_url, timeout=15.0)
         if resp.status_code != 200:
             return "oauth1-user"

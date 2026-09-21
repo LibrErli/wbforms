@@ -24,6 +24,7 @@ from wbforms.datamodel.item import (
 from wbforms.settings import get_settings
 from wbforms.wb_calendar import DEFAULT_CALENDAR_MODEL, calendar_model_options
 from wbforms.wbgenerator import _is_list_annotation, _wikibase_reference_class, get_statement_field_type
+from wbforms.wikibase import get_default_user_agent
 
 _STATIC_DIR = Path(__file__).parent.parent / "static"
 
@@ -332,6 +333,7 @@ async def entity_search(q: str = Query(..., min_length=1), limit: int = 10) -> l
                 "format": "json",
                 "limit": limit,
             },
+            headers={"User-Agent": get_default_user_agent()},
             timeout=10.0,
         )
         resp.raise_for_status()
@@ -358,6 +360,7 @@ async def entity_label(qid: str = Query(...), language: str = "en") -> dict:
                 "languages": language,
                 "format": "json",
             },
+            headers={"User-Agent": get_default_user_agent()},
             timeout=10.0,
         )
         resp.raise_for_status()
