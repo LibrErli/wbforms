@@ -17,3 +17,6 @@ wheels/
 
 # js
 node_modules/
+
+# Misc
+ERCH*.md
