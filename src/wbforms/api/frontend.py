@@ -16,6 +16,7 @@ from wbforms.codegen.endpoints import derive_endpoints
 from wbforms.datamodel.item import WIKIBASE_ID, WIKIBASE_TYPE, StatementBase, WikibaseReferenceBase
 from wbforms.settings import get_settings
 from wbforms.wbgenerator import _is_list_annotation, _wikibase_reference_class, get_statement_field_type
+from wbforms.wikibase import get_default_user_agent
 
 _STATIC_DIR = Path(__file__).parent.parent / "static"
 
@@ -345,6 +346,7 @@ async def entity_search(q: str = Query(..., min_length=1), limit: int = 10, lang
                 "srlimit": limit,
                 "srprop": "size|wordcount|timestamp|snippet|titlesnippet|extensiondata|redirecttitle|sectiontitle"
             },
+            headers={"User-Agent": get_default_user_agent()},
             timeout=10.0,
         )
         resp.raise_for_status()
@@ -376,6 +378,7 @@ async def entity_label(qid: str = Query(...), language: str = "de") -> dict:
                 "uselang": language,
                 "format": "json",
             },
+            headers={"User-Agent": get_default_user_agent()},
             timeout=10.0,
         )
         resp.raise_for_status()
