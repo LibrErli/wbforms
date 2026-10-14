@@ -408,3 +408,124 @@ def generate_models(schema_path: Path) -> dict[str, type]:
         models[class_name] = read_model
 
     return models
+
+
+def _get_slot_local_names(view: SchemaView, slot_name: str, class_name: str) -> dict[str, dict[str, str]]:
+    """Extract local_names for a slot, considering slot_usage overrides."""
+    local_names: dict[str, dict[str, str]] = {}
+    
+    # Get the base slot
+    base_slot = view.get_slot(slot_name)
+    if base_slot and hasattr(base_slot, "local_names") and base_slot.local_names:
+        for lang, name_obj in base_slot.local_names.items():
+            local_names[lang] = {"local_name_value": name_obj.local_name_value}
+    
+    # Check class-level slot_usage for overrides
+    cls_def = view.get_class(class_name)
+    if cls_def and cls_def.slot_usage and slot_name in cls_def.slot_usage:
+        su = cls_def.slot_usage[slot_name]
+        if hasattr(su, "local_names") and su.local_names:
+            for lang, name_obj in su.local_names.items():
+                local_names[lang] = {"local_name_value": name_obj.local_name_value}
+    
+    return local_names
+
+
+def generate_frontend_schema(schema_path: Path) -> dict:
+    """Generate a frontend-compatible schema with local_names for classes and slots.
+    
+    Returns a dict with an 'entities' list, where each entity has:
+    - name: the class name (e.g., 'Besucherbuch_Dresden')
+    - local_names: dict of {lang: {local_name_value: '...'}}
+    - fields: list of field definitions with their own local_names
+    - endpoint_prefix: if defined in annotations
+    """
+    raw = yaml.safe_load(schema_path.read_text(encoding="utf-8"))
+    view = SchemaView(yaml.dump(raw))
+    entities = []
+
+    for class_name in view.all_classes():
+        cls_def = view.get_class(class_name)
+        if cls_def is None:
+            continue
+
+        # Only include classes with python_base: entity_item
+        python_base_key = _ann_dict(cls_def.annotations).get("python_base")
+        if python_base_key != "entity_item":
+            continue
+
+        # Extract class local_names
+        class_local_names = {}
+        if hasattr(cls_def, "local_names") and cls_def.local_names:
+            for lang, name_obj in cls_def.local_names.items():
+                class_local_names[lang] = {"local_name_value": name_obj.local_name_value}
+
+        # Collect all slots (own slots + slot_usage)
+        own_slots = list(cls_def.slots or [])
+        slot_usage_only = [s for s in (cls_def.slot_usage or {}) if s not in own_slots]
+        slots_to_process = own_slots + slot_usage_only
+
+        # Build fields list
+        fields = []
+        for slot_name in slots_to_process:
+            induced = view.induced_slot(slot_name, class_name)
+            if induced is None:
+                continue
+
+            # Get slot annotations
+            anns = _slot_annotations(view, slot_name, class_name, induced)
+            
+            # Get slot local_names
+            slot_local_names = _get_slot_local_names(view, slot_name, class_name)
+
+            # Determine field type
+            range_name = induced.range or "string"
+            is_stmt_subject = _is_statement_subject(anns)
+            
+            # For statement-level fields (range is another class with python_base)
+            if range_name in view.all_classes():
+                range_cls_def = view.get_class(range_name)
+                if range_cls_def:
+                    range_python_base = _ann_dict(range_cls_def.annotations).get("python_base")
+                    if range_python_base in ("extracted_statement", "wikibase_reference"):
+                        field_type = "statement_list"
+                    else:
+                        field_type = "item"
+                else:
+                    field_type = "string"
+            elif range_name in RANGE_TO_PYTHON:
+                field_type = range_name
+            elif induced.multivalued:
+                field_type = "list"
+            else:
+                field_type = "string"
+
+            # Check for statement subject (from annotations)
+            if is_stmt_subject:
+                field_type = "statement_list"
+
+            fields.append({
+                "name": slot_name,
+                "field_type": field_type,
+                "local_names": slot_local_names if slot_local_names else None,
+                "required": induced.required,
+                "default_value": anns.get("default_value"),
+                "annotations": {k: v for k, v in anns.items() 
+                               if k not in ("wikibase_id", "wikidata_id", "wikibase_type")},
+                "supports_references": _truthy(anns.get(SUPPORTS_REFERENCES_ANNOTATION)),
+                "multivalued": induced.multivalued,
+                "pattern": induced.pattern,
+                "description": str(induced.description) if induced.description else None,
+            })
+
+        # Get endpoint_prefix from annotations
+        endpoint_prefix = _ann_dict(cls_def.annotations).get("endpoint_prefix", "")
+
+        entities.append({
+            "name": class_name,
+            "local_names": class_local_names if class_local_names else None,
+            "fields": fields,
+            "endpoint_prefix": endpoint_prefix,
+        })
+
+    return {"entities": entities}

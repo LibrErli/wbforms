@@ -26,6 +26,15 @@ export default {
     const { ref, reactive, computed, watch, onMounted, nextTick } = Vue;
     const { t, locale, setLocale } = useI18n();
 
+    const getEntityLabel = (entity) => {
+      // Falls local_names vorhanden: verwende den Wert für die aktuelle Sprache
+      if (entity.local_names?.[locale.value]) {
+        return entity.local_names[locale.value].local_name_value;
+      }
+      // Fallback: technischer Name (z. B. für nicht annotierte Klassen)
+      return entity.name;
+    };
+
     const selectedEntityName = ref("");
     const qidInput = ref("");
     const qidLabel = ref("");
@@ -312,7 +321,8 @@ export default {
       setLocale,
       LANGUAGES,
       openExternalSearch,
-    };
+      getEntityLabel,
+      };
   },
   template: `
     <div class="app-shell">
@@ -341,7 +351,7 @@ export default {
             <label>{{ t('entity_type_label') }}</label>
             <select v-model="selectedEntityName">
               <option value="">{{ t('entity_type_placeholder') }}</option>
-              <option v-for="e in entities" :key="e.name" :value="e.name">{{ e.name }}</option>
+              <option v-for="e in entities" :key="e.name" :value="e.name">{{ getEntityLabel(e) }}</option>
             </select>
           </div>
 
@@ -372,8 +382,6 @@ export default {
             <button class="secondary outline" :title="'Suche in Wikipedia'" @click="openExternalSearch('wiki')" :disabled="!qidLabel.trim() && !qidInput.trim() && !searchText.trim()"><span>Wikipedia</span></button>
           </div>
         </aside>
-
-
 
         <section class="main-pane">
           <div v-if="loadError" class="error-banner">{{ loadError }}</div>

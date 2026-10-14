@@ -491,6 +491,11 @@ classes:
   Besucherbuch_Dresden:
     annotations:
       python_base: entity_item
+    local_names:
+      en:
+        local_name_value: "Dresden Visitor Book"
+      de:
+        local_name_value: "Besucherbuch Dresden"
     slots:
       - instance_of
       - description
@@ -528,6 +533,11 @@ classes:
   Besucherbuch_Hofloesznitz_1694_1715:
     annotations:
       python_base: entity_item
+    local_names:
+      en:
+        local_name_value: "Hoflößnitz Visitor Book 1694–1715"
+      de:
+        local_name_value: "Besucherbuch Hoflößnitz 1694–1715"      
     slots:
       - instance_of
       - description
@@ -565,6 +575,11 @@ classes:
   Besucherbuch_Hofloesznitz_1710_1728:
     annotations:
       python_base: entity_item
+    local_names:
+      en:
+        local_name_value: "Hoflößnitz Visitor Book 1710-1728"
+      de:
+        local_name_value: "Besucherbuch Hoflößnitz 1710-1728"          
     slots:
       - instance_of
       - description
@@ -602,6 +617,11 @@ classes:
   FamilyName:
     annotations:
       python_base: entity_item
+    local_names:
+      en:
+        local_name_value: "Familyname"
+      de:
+        local_name_value: "Familienname"           
     slots:
       - instance_of
       - description

@@ -155,6 +155,19 @@ def _build_reference_fields(ref_cls: type[WikibaseReferenceBase], language: str 
     return fields
 
 
+def _get_class_local_names(class_name: str) -> dict[str, dict[str, str]]:
+    """Extract local_names for a class from the LinkML schema."""
+    schema = _get_schema()
+    classes = schema.get("classes", {})
+    cls_def = classes.get(class_name, {})
+    local_names = {}
+    if "local_names" in cls_def:
+        for lang, name_obj in cls_def["local_names"].items():
+            if isinstance(name_obj, dict) and "local_name_value" in name_obj:
+                local_names[lang] = {"local_name_value": name_obj["local_name_value"]}
+    return local_names
+
+
 def _build_entity_schema(
     entity_name: str,
     model_cls: type[BaseModel],
@@ -162,10 +175,27 @@ def _build_entity_schema(
     endpoints: list[dict],
     language: str = "en",
 ) -> dict:
+    # Get local_names for the class from the LinkML schema
+    class_local_names = _get_class_local_names(entity_name)
+    
     fields: list[dict] = []
 
     # Always expose label and description as top-level text inputs; requiredness follows
     # the model (mandatory unless the schema declares the slot as optional).
+    # Get local_names for term slots (label, description)
+    def _get_term_slot_local_names(slot_name: str) -> dict[str, dict[str, str]]:
+        schema = _get_schema()
+        slots = schema.get("slots", {})
+        if slot_name in slots:
+            slot_def = slots[slot_name]
+            if "local_names" in slot_def:
+                local_names = {}
+                for lang, name_obj in slot_def["local_names"].items():
+                    if isinstance(name_obj, dict) and "local_name_value" in name_obj:
+                        local_names[lang] = {"local_name_value": name_obj["local_name_value"]}
+                return local_names
+        return {}
+    
     for meta_name in ["label", "description"]:
         finfo = model_cls.model_fields.get(meta_name)
         if finfo is None:
@@ -179,10 +209,14 @@ def _build_entity_schema(
         else:
             label_value = _label(meta_name)
         
+        # Get local_names for term slots
+        term_local_names = _get_term_slot_local_names(meta_name)
+        
         extra = finfo.json_schema_extra if isinstance(finfo.json_schema_extra, dict) else {}
         term_field: dict = {
             "name": meta_name,
             "label": label_value,
+            "local_names": term_local_names if term_local_names else None,
             "field_type": "single",
             "wikibase_type": "string",
             "required": finfo.is_required(),
@@ -197,6 +231,20 @@ def _build_entity_schema(
             term_field["annotations"] = extra
         fields.append(term_field)
 
+    # Helper function to get local_names for a slot
+    def _get_slot_local_names(slot_name: str) -> dict[str, dict[str, str]]:
+        schema = _get_schema()
+        slots = schema.get("slots", {})
+        if slot_name in slots:
+            slot_def = slots[slot_name]
+            if "local_names" in slot_def:
+                local_names = {}
+                for lang, name_obj in slot_def["local_names"].items():
+                    if isinstance(name_obj, dict) and "local_name_value" in name_obj:
+                        local_names[lang] = {"local_name_value": name_obj["local_name_value"]}
+                return local_names
+        return {}
+
     for fname, finfo in model_cls.model_fields.items():
         if fname in _SKIP_FIELDS or fname in {"label", "description"}:
             continue
@@ -208,6 +256,9 @@ def _build_entity_schema(
         wb_id = extra.get(WIKIBASE_ID, "")
         if wb_id in _INTERNAL_WB_IDS:
             continue
+        
+        # Get local_names for this field/slot
+        slot_local_names = _get_slot_local_names(fname)
 
         # Statement-reference field (list[ScholarSignature], etc.)
         stmt_type = get_statement_field_type(finfo.annotation)
@@ -227,10 +278,14 @@ def _build_entity_schema(
             ref_cls = _reference_class_for(stmt_type)
             if ref_cls is not None:
                 ref_cls = _strict_variant(ref_cls, all_models)
+            # Get local_names for statement fields from their class definition
+            stmt_local_names = _get_class_local_names(stmt_name)
+            
             fields.append(
                 {
                     "name": fname,
                     "label": _get_localized_label(fname, language),
+                    "local_names": slot_local_names if slot_local_names else None,
                     "field_type": "statement_list",
                     "statement_model": stmt_name,
                     "statement_endpoint": stmt_endpoint["prefix"] if stmt_endpoint else None,
@@ -248,6 +303,7 @@ def _build_entity_schema(
         descriptor: dict = {
             "name": fname,
             "label": _get_localized_label(fname, language),
+            "local_names": slot_local_names if slot_local_names else None,
             "field_type": "list" if _is_list_annotation(finfo.annotation) else "single",
             "wikibase_type": _wikibase_type(finfo),
             "required": finfo.is_required(),
@@ -266,7 +322,11 @@ def _build_entity_schema(
                 descriptor["reference_fields"] = _build_reference_fields(_strict_variant(ref_cls, all_models), language)
         fields.append(descriptor)
 
-    return {"name": entity_name, "fields": fields}
+    return {
+        "name": entity_name,
+        "local_names": class_local_names if class_local_names else None,
+        "fields": fields
+    }
 
 
 @router.get("/api/config")
