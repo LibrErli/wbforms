@@ -525,7 +525,7 @@ classes:
         annotations:
           default_value: Q7
 
-  Besucherbuch_Hoflößnitz_1694_1715:
+  Besucherbuch_Hofloesznitz_1694_1715:
     annotations:
       python_base: entity_item
     slots:
@@ -562,7 +562,7 @@ classes:
         annotations:
           default_value: Q7
 
-  Besucherbuch_Hoflößnitz_1710_1728:
+  Besucherbuch_Hofloesznitz_1710_1728:
     annotations:
       python_base: entity_item
     slots:
