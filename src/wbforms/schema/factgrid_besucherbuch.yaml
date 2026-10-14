@@ -355,8 +355,8 @@ slots:
 
 
   # Statement-reference slots (range is a schema class, no Wikibase annotations)
-  stay_in:
-    range: StayIn
+  stay_in_dresden:
+    range: StayInDresden
     multivalued: true
     inlined_as_list: true
     local_names:
@@ -365,8 +365,48 @@ slots:
       de:
         local_name_value: "Aufenthalt in"
 
-  person_group:
-    range: PersonGroup
+  stay_in_hoflößnitz_1694:
+    range: StayInHoflößnitz1694
+    multivalued: true
+    inlined_as_list: true
+    local_names:
+      en:
+        local_name_value: "Stay in"
+      de:
+        local_name_value: "Aufenthalt in"
+
+  stay_in_hoflößnitz_1710:
+    range: StayInHoflößnitz1710
+    multivalued: true
+    inlined_as_list: true
+    local_names:
+      en:
+        local_name_value: "Stay in"
+      de:
+        local_name_value: "Aufenthalt in"
+
+  person_group_dresden:
+    range: PersonGroupDresden
+    multivalued: true
+    inlined_as_list: true
+    local_names:
+      en:
+        local_name_value: "group of persons"
+      de:
+        local_name_value: "Personengruppe"
+
+  person_group_hoflößnitz_1694:
+    range: PersonGroupHof1694
+    multivalued: true
+    inlined_as_list: true
+    local_names:
+      en:
+        local_name_value: "group of persons"
+      de:
+        local_name_value: "Personengruppe"
+
+  person_group_hoflößnitz_1710:
+    range: PersonGroupHof1710
     multivalued: true
     inlined_as_list: true
     local_names:
@@ -448,7 +488,7 @@ slots:
       wikibase_type: string
 
 classes:
-  Person_Besucherbuch:
+  Besucherbuch_Dresden:
     annotations:
       python_base: entity_item
     slots:
@@ -463,7 +503,7 @@ classes:
       - place_from
       - country_citizenship
       - location_identiy
-      - stay_in
+      - stay_in_dresden
       - career_statement
       - online_information
       - work_location
@@ -473,12 +513,86 @@ classes:
       - gnd_id
       - wbis_id
       - adb
-      - person_group
+      - person_group_dresden
     slot_usage:
-      stay_in:
+      stay_in_dresden:
         annotations:
           supports_references: true
-      person_group:
+      person_group_dresden:
+        annotations:
+          supports_references: true 
+      instance_of:
+        annotations:
+          default_value: Q7
+
+  Besucherbuch_Hoflößnitz_1694_1715:
+    annotations:
+      python_base: entity_item
+    slots:
+      - instance_of
+      - description
+      - family_name
+      - given_name
+      - date_of_birth
+      - date_of_death
+      - place_of_birth
+      - place_of_death
+      - place_from
+      - country_citizenship
+      - location_identiy
+      - stay_in_hoflößnitz_1694
+      - career_statement
+      - online_information
+      - work_location
+      - aristocratic
+      - note
+      - biographical_notes
+      - gnd_id
+      - wbis_id
+      - adb
+      - person_group_hoflößnitz_1694
+    slot_usage:
+      stay_in_hoflößnitz_1694:
+        annotations:
+          supports_references: true
+      person_group_hoflößnitz_1694:
+        annotations:
+          supports_references: true 
+      instance_of:
+        annotations:
+          default_value: Q7
+
+  Besucherbuch_Hoflößnitz_1710_1728:
+    annotations:
+      python_base: entity_item
+    slots:
+      - instance_of
+      - description
+      - family_name
+      - given_name
+      - date_of_birth
+      - date_of_death
+      - place_of_birth
+      - place_of_death
+      - place_from
+      - country_citizenship
+      - location_identiy
+      - stay_in_hoflößnitz_1710
+      - career_statement
+      - online_information
+      - work_location
+      - aristocratic
+      - note
+      - biographical_notes
+      - gnd_id
+      - wbis_id
+      - adb
+      - person_group_hoflößnitz_1710
+    slot_usage:
+      stay_in_hoflößnitz_1710:
+        annotations:
+          supports_references: true
+      person_group_hoflößnitz_1710:
         annotations:
           supports_references: true 
       instance_of:
@@ -496,12 +610,13 @@ classes:
         annotations:
           default_value: Q24499
 
-  StayIn:
+  StayInDresden:
     annotations:
       python_base: extracted_statement
       model_title: StayIn
       enforce_unknown_stmt_name: false
       supports_references: true
+      reference_model: WikibaseReferenceDD
     slots:
       - station_id
       - begin_date
@@ -511,17 +626,72 @@ classes:
         annotations:
           default_value: Q1872083
 
-  PersonGroup:
+  StayInHoflößnitz1694:
+    annotations:
+      python_base: extracted_statement
+      model_title: StayIn
+      enforce_unknown_stmt_name: false
+      supports_references: true
+      reference_model: WikibaseReferenceHof1694 
+    slots:
+      - station_id
+      - begin_date
+      - end_date
+    slot_usage:
+      station_id:
+        annotations:
+          default_value: Q950165
+
+  StayInHoflößnitz1710:
+    annotations:
+      python_base: extracted_statement
+      model_title: StayIn
+      enforce_unknown_stmt_name: false
+      supports_references: true
+      reference_model: WikibaseReferenceHof1710
+    slots:
+      - station_id
+      - begin_date
+      - end_date
+    slot_usage:
+      station_id:
+        annotations:
+          default_value: Q950165
+          
+  PersonGroupDresden:
     annotations:
       python_base: extracted_statement
       model_title: PersonGroup
       enforce_unknown_stmt_name: false
       supports_references: true
+      reference_model: WikibaseReferenceDD
     slots:
       - other_person_id
       - note_qual
 
-  WikibaseReference:
+  PersonGroupHof1694:
+    annotations:
+      python_base: extracted_statement
+      model_title: PersonGroup
+      enforce_unknown_stmt_name: false
+      supports_references: true
+      reference_model: WikibaseReferenceHof1694       
+    slots:
+      - other_person_id
+      - note_qual
+
+  PersonGroupHof1710:
+    annotations:
+      python_base: extracted_statement
+      model_title: PersonGroup
+      enforce_unknown_stmt_name: false
+      supports_references: true
+      reference_model: WikibaseReferenceHof1710      
+    slots:
+      - other_person_id
+      - note_qual
+
+  WikibaseReferenceDD:
     description: A Wikibase statement-level reference block (group of snaks documenting provenance).
     annotations:
       python_base: wikibase_reference
@@ -535,3 +705,34 @@ classes:
       ref_primary_source:
         annotations:
           default_value: Q1871961
+
+  WikibaseReferenceHof1694:
+    description: A Wikibase statement-level reference block (group of snaks documenting provenance).
+    annotations:
+      python_base: wikibase_reference
+    slots:
+      - ref_primary_source
+      - ref_page
+      - ref_online_digistation
+      - ref_wikisource_page
+      - ref_literal_statement
+    slot_usage:
+      ref_primary_source:
+        annotations:
+          default_value: Q2185005   
+
+  WikibaseReferenceHof1710:
+    description: A Wikibase statement-level reference block (group of snaks documenting provenance).
+    annotations:
+      python_base: wikibase_reference
+    slots:
+      - ref_primary_source
+      - ref_page
+      - ref_online_digistation
+      - ref_wikisource_page
+      - ref_literal_statement
+    slot_usage:
+      ref_primary_source:
+        annotations:
+          default_value: Q2185006
+              

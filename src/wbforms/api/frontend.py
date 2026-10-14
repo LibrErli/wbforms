@@ -143,9 +143,11 @@ def _build_reference_fields(ref_cls: type[WikibaseReferenceBase], language: str 
             "field_type": "list" if _is_list_annotation(finfo.annotation) else "single",
             "required": finfo.is_required(),
         }
-        # Include default_value from json_schema_extra
+        # Include default_value from json_schema_extra or from field default
         if "default_value" in extra:
             field_desc["default_value"] = extra["default_value"]
+        elif finfo.default is not None and finfo.default != ...:
+            field_desc["default_value"] = finfo.default
         # Include the full json_schema_extra as annotations for debugging and future use
         if extra:
             field_desc["annotations"] = extra

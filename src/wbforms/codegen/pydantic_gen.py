@@ -32,6 +32,19 @@ ENTITY_TERM_SLOTS: dict[str, str] = {
     "description": "schema:description",
 }
 
+
+def _get_wikibase_reference_classes(view: SchemaView) -> list[str]:
+    """Return all class names that have python_base: wikibase_reference annotation."""
+    ref_classes: list[str] = []
+    for class_name in view.all_classes():
+        cls_def = view.get_class(class_name)
+        if cls_def is None:
+            continue
+        anns = _ann_dict(cls_def.annotations)
+        if anns.get("python_base") == "wikibase_reference":
+            ref_classes.append(class_name)
+    return ref_classes
+
 RANGE_TO_PYTHON: dict[str, Any] = {
     "string": str,
     "integer": int,
@@ -229,9 +242,11 @@ def _topological_order(view: SchemaView) -> list[str]:
             slot_def = view.get_slot(slot_name)
             if slot_def and slot_def.range in all_class_names:
                 visit(slot_def.range)
-        # supports_references opt-in (class-level or slot-level) induces a dependency on WikibaseReference
-        if _class_needs_wikibase_reference(view, cls) and WIKIBASE_REFERENCE_CLASS_NAME in all_class_names:
-            visit(WIKIBASE_REFERENCE_CLASS_NAME)
+        # supports_references opt-in (class-level or slot-level) induces a dependency on WikibaseReference classes
+        if _class_needs_wikibase_reference(view, cls):
+            for ref_class_name in _get_wikibase_reference_classes(view):
+                if ref_class_name in all_class_names:
+                    visit(ref_class_name)
         result.append(name)
 
     for name in view.all_classes():
@@ -275,7 +290,26 @@ def generate_models(schema_path: Path) -> dict[str, type]:
         slots_to_gen = own_slots_ordered + slot_usage_only
 
         field_defs: dict[str, tuple[Any, Any]] = {}
-        ref_cls: Any = models.get(WIKIBASE_REFERENCE_CLASS_NAME)
+        # Find the appropriate WikibaseReference class for this schema
+        # First, check if the class explicitly specifies a reference model via annotation
+        ref_cls: Any = None
+        class_anns = _ann_dict(cls_def.annotations)
+        explicit_ref_model = class_anns.get("reference_model")
+        
+        if explicit_ref_model:
+            # Use the explicitly specified reference model
+            if explicit_ref_model in models:
+                ref_cls = models[explicit_ref_model]
+        else:
+            # Use the first available wikibase_reference class that has been generated
+            for ref_class_name in _get_wikibase_reference_classes(view):
+                if ref_class_name in models:
+                    ref_cls = models[ref_class_name]
+                    break
+        
+        # Fallback to the hardcoded name for backward compatibility
+        if ref_cls is None:
+            ref_cls = models.get(WIKIBASE_REFERENCE_CLASS_NAME)
         for slot_name in slots_to_gen:
             induced = view.induced_slot(slot_name, class_name)
             anns = _slot_annotations(view, slot_name, class_name, induced)
@@ -295,9 +329,16 @@ def generate_models(schema_path: Path) -> dict[str, type]:
             field_defs[slot_name] = (py_type, field_info)
 
             # Slot-level supports_references: pair the slot with a sibling `<slot>_sources` field.
-            if _truthy(anns.get(SUPPORTS_REFERENCES_ANNOTATION)) and ref_cls is not None:
-                sources_type: Any = list[list[ref_cls]] if induced.multivalued else list[ref_cls]
-                field_defs[f"{slot_name}_sources"] = (sources_type, Field(default_factory=list))
+            if _truthy(anns.get(SUPPORTS_REFERENCES_ANNOTATION)):
+                # Check if this slot specifies a different reference model
+                slot_ref_model = anns.get("reference_model")
+                slot_ref_cls = ref_cls
+                if slot_ref_model and slot_ref_model in models:
+                    slot_ref_cls = models[slot_ref_model]
+                
+                if slot_ref_cls is not None:
+                    sources_type: Any = list[list[slot_ref_cls]] if induced.multivalued else list[slot_ref_cls]
+                    field_defs[f"{slot_name}_sources"] = (sources_type, Field(default_factory=list))
 
         # Class-level supports_references opt-in: a flat `sources: list[WikibaseReference]` per row.
         if _truthy(_ann_dict(cls_def.annotations).get(SUPPORTS_REFERENCES_ANNOTATION)) and ref_cls is not None:
