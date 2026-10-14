@@ -388,7 +388,7 @@ export default {
           <div v-if="success" class="success-banner">{{ success }}</div>
 
           <template v-if="selectedEntity && (isNew || loadedData)">
-            <h3>{{ isNew ? t('entity_new_heading', { name: selectedEntity.name }) : t('entity_loaded_heading', { name: selectedEntity.name, qid: loadedQid }) }}</h3>
+            <h3>{{ isNew ? t('entity_new_heading', { name: getEntityLabel(selectedEntity) }) : t('entity_loaded_heading', { name: getEntityLabel(selectedEntity), qid: loadedQid }) }}</h3>
 
             <div v-if="simpleFields.length" class="card">
               <div class="fields-grid">
