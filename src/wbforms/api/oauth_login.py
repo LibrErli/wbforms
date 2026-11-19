@@ -8,6 +8,7 @@ obtained authorization-code access token.
 
 from requests_oauthlib import OAuth2Session
 from wikibaseintegrator.wbi_login import _Login
+
 from wbforms.wikibase import get_default_user_agent
 
 

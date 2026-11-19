@@ -652,10 +652,12 @@ def statement_content_matches(statement: StatementBase, model: StatementBase) ->
     :param model:
     :return:
     """
-    if not statement == model:
+    if statement != model:
         return False
     for qualifier_field in model.get_qualifier_fields(WIKIBASE_ID):
-        if not _qualifier_values_equal(getattr(statement, qualifier_field, None), getattr(model, qualifier_field, None)):
+        if not _qualifier_values_equal(
+            getattr(statement, qualifier_field, None), getattr(model, qualifier_field, None)
+        ):
             return False
     return True
 

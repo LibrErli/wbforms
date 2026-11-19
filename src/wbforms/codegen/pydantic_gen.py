@@ -334,12 +334,13 @@ def generate_models(schema_path: Path) -> dict[str, type]:
             if enforce_stmt_name:
                 extra_attrs["_enforce_unknown_stmt_name"] = True
             base_cls = type(f"_{class_name}Configured", (base_cls,), extra_attrs)
-        
+
         # Add custom __eq__ method to base_cls for all extracted_statement classes
         # This is needed for statement content-based resolution in wbgenerator.py
         # For classes with object_named_as: compare by subject if object_named_as is None, else by object_named_as
         # For classes without object_named_as: compare by subject only
         if python_base_key == "extracted_statement":
+
             def _eq_extracted_statement(self, other):
                 """Custom equality for extracted statements."""
                 other_object_named_as = getattr(other, "object_named_as", None)
@@ -351,8 +352,12 @@ def generate_models(schema_path: Path) -> dict[str, type]:
                     return getattr(self, stmt_object_field, None) == getattr(other, stmt_object_field, None)
                 else:
                     return self_object_named_as == other_object_named_as
-            
-            base_cls = type(f"_{class_name}ExtractedStatement", (base_cls,), {"__eq__": _eq_extracted_statement, "__module__": "wbforms.codegen"})
+
+            base_cls = type(
+                f"_{class_name}ExtractedStatement",
+                (base_cls,),
+                {"__eq__": _eq_extracted_statement, "__module__": "wbforms.codegen"},
+            )
 
         base_model = create_model(
             f"{class_name}Base",

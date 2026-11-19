@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 def get_default_user_agent() -> str:
     """Get default user agent from settings or use fallback"""
     from wbforms.settings import get_settings
+
     settings = get_settings()
     if settings.request_header_user_agent:
         return settings.request_header_user_agent

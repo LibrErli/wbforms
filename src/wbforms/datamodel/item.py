@@ -1,9 +1,7 @@
-from typing import Annotated, Literal, Self
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, constr, model_validator
 from pydantic.fields import FieldInfo
-from wikibaseintegrator import datatypes
-from wikibaseintegrator.wbi_enums import WikibaseSnakType
 
 WIKIBASE_TYPE = "wikibase_type"
 WIKIBASE_ID = "WIKIBASE_ID"
@@ -112,6 +110,7 @@ class ExtractedStatement(StatementBase):
     Statement class for extracted statements.
     The object_named_as field is added dynamically if defined in the schema as a qualifier slot.
     """
+
     pass
 
 

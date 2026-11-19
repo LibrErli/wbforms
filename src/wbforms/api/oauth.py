@@ -113,10 +113,7 @@ async def _oauth2_callback(code: str, state: str) -> RedirectResponse:
 
     token_url = f"{_rest_base()}/oauth2/access_token"
     profile_url = f"{_rest_base()}/oauth2/resource/profile"
-    async with httpx.AsyncClient(
-        timeout=15.0,
-        headers={"User-Agent": get_default_user_agent()}
-    ) as client:
+    async with httpx.AsyncClient(timeout=15.0, headers={"User-Agent": get_default_user_agent()}) as client:
         resp = await client.post(
             token_url,
             data={
