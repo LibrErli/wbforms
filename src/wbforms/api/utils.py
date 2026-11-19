@@ -185,7 +185,14 @@ def handle_statement_creation(
         item: ItemEntity = wikibase.get_item(item_id)
         add_statement_from_model(item, model_obj)
         updated_item = wikibase.write_item(item, summary=f"Adds {get_model_label(target_model)}")
-        created_subject = get_item_statement_by_model(item=updated_item, model=model_obj, target_model=target_model)
+        # Resolve the created statement by full content (subject + qualifiers) so the right
+        # one is returned when several statements share the same subject; fall back to the
+        # subject-only match if the written item does not round-trip exactly.
+        created_subject = get_item_statement_by_model(
+            item=updated_item, model=model_obj, target_model=target_model, match_qualifiers=True
+        )
+        if created_subject is None:
+            created_subject = get_item_statement_by_model(item=updated_item, model=model_obj, target_model=target_model)
         return created_subject
     except Exception as e:
         logger.error(e)
