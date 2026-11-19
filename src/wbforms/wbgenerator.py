@@ -623,6 +623,43 @@ def get_model_from_qualified_statement(claim: Claim, model: type[StatementBase])
     return model_obj
 
 
+def _qualifier_values_equal(a: Any, b: Any) -> bool:
+    """
+    Compare two qualifier values. Multi-value qualifiers are stored as lists and
+    compared order-insensitively (Wikibase qualifier order carries no meaning).
+    """
+    if isinstance(a, list) and isinstance(b, list):
+        if len(a) != len(b):
+            return False
+        remaining = list(b)
+        for item in a:
+            for i, other in enumerate(remaining):
+                if item == other:
+                    del remaining[i]
+                    break
+            else:
+                return False
+        return True
+    return a == b
+
+
+def statement_content_matches(statement: StatementBase, model: StatementBase) -> bool:
+    """
+    Check whether a statement parsed from an item has the same content as the given model:
+    same statement subject (via the model ``__eq__``) and equal values for every qualifier
+    field. References (``sources``) are not part of the statement identity and are ignored.
+    :param statement:
+    :param model:
+    :return:
+    """
+    if not statement == model:
+        return False
+    for qualifier_field in model.get_qualifier_fields(WIKIBASE_ID):
+        if not _qualifier_values_equal(getattr(statement, qualifier_field, None), getattr(model, qualifier_field, None)):
+            return False
+    return True
+
+
 def add_statement_from_model(item: ItemEntity, model: StatementBase):
     """
     Add model as statement to given item
@@ -630,7 +667,7 @@ def add_statement_from_model(item: ItemEntity, model: StatementBase):
     :param model:
     :return:
     """
-    existing_statement = get_item_statement_by_model(item, model)
+    existing_statement = get_item_statement_by_model(item, model, match_qualifiers=True)
     if existing_statement is not None:
         raise ValueError(f"Statement already exists ({existing_statement}) ")
     claim = create_qualified_statement_from_model(model)
@@ -641,19 +678,25 @@ def get_item_statement_by_model(
     item: ItemEntity,
     model: StatementBase,
     target_model: type[StatementBase | Statement] | None = None,
+    match_qualifiers: bool = False,
 ) -> StatementBase | Statement | None:
     """
     Get statement id from given item or None if the model is not a claim of the item
     :param target_model:
     :param item:
     :param model:
+    :param match_qualifiers: if True, also compare qualifier values (full statement content);
+        if False (default), match on the statement subject only, as before
     :return:
     """
     if target_model is None:
         target_model = model.__class__
     statements = get_models_from_qualified_statement(item, target_model)
     for statement in statements:
-        if statement == model:
+        if match_qualifiers:
+            if statement_content_matches(statement, model):
+                return statement
+        elif statement == model:
             return statement
     return None
 
