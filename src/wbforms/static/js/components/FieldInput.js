@@ -46,11 +46,9 @@ export default {
 
     const listVal = computed(() => {
       if (!isList.value) return [];
-      return Array.isArray(props.modelValue)
-        ? props.modelValue
-        : props.modelValue
-          ? [props.modelValue]
-          : [""];
+      if (Array.isArray(props.modelValue))
+        return props.modelValue.length ? props.modelValue : [""];
+      return props.modelValue ? [props.modelValue] : [""];
     });
 
     const singleSources = computed(() =>

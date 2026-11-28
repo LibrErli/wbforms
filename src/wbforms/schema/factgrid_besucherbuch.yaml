@@ -148,6 +148,7 @@ slots:
       wikibase_type: item
   online_information:
     range: anyuri
+    multivalued: true
     local_names:
       en:
         local_name_value: "Online Information"

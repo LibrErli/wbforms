@@ -247,7 +247,8 @@ export default {
             v === null ||
             v === undefined ||
             v === "" ||
-            (Array.isArray(v) && !v.length);
+            (Array.isArray(v) &&
+              v.every((x) => x === null || x === undefined || x === ""));
           if (isEmpty) {
             if (!props.isNew) {
               const oldVal = props.loadedData?.[k];
